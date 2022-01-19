@@ -14,7 +14,7 @@ https://user-images.githubusercontent.com/23657151/150146704-099dfd60-3103-4024-
 
 2. Copy the styleable StickyHeaderTableView from "res/value/attr.xml" file and past it to your res/value/attr.xml file
 
-3. Now you can use below codes or see [MainActivity.kt](/app/src/main/java/sticky/header/tableview/MainActivity.kt) and [activity_main.xml](/app/src/main/java/res/layout/activity_main.xml) for demo.
+3. Now you can use below codes or see [MainActivity.kt](/app/src/main/java/sticky/header/tableview/MainActivity.kt) and [activity_main.xml](/app/src/main/res/layout/activity_main.xml) for demo.
 
     In your xml layout file
 
