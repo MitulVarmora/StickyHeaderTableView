@@ -6,6 +6,9 @@ This view is created to display data in table with sticky 1st column and row,
 content is bi-directionally scrollable. Android doesn't provide sticky header support
 in TableView, to overcome this kind of data representation I have created this view.
 
+## Screen Recording (Sample):
+https://user-images.githubusercontent.com/23657151/150146704-099dfd60-3103-4024-9957-0cd01bf7054a.mp4
+
 ## Uses:
 1. copy-past the package "stickyheadertableview" in your package.
 
@@ -20,19 +23,19 @@ in TableView, to overcome this kind of data representation I have created this v
             android:id="@+id/stickyHeaderTableView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            app:cellPadding="10dp"
-            app:contentCellFillColor="@color/contentCellFillColor"
-            app:dividerColor="@color/lineDividerColor"
-            app:dividerThickness="1dp"
-            app:headerCellFillColor="@color/headerCellFillColor"
-            app:is2DScrollEnabled="false"
-            app:isDisplayLeftHeadersVertically="true"
-            app:isWrapHeightOfEachRow="true"
-            app:isWrapWidthOfEachColumn="true"
-            app:textHeaderColor="@color/textHeaderColor"
-            app:textHeaderSize="18dp"
-            app:textLabelColor="@color/textLabelColor"
-            app:textLabelSize="14dp" />
+            app:shtv_cellPadding="10dp"
+            app:shtv_contentCellFillColor="@color/contentCellFillColor"
+            app:shtv_dividerColor="@color/lineDividerColor"
+            app:shtv_dividerThickness="1dp"
+            app:shtv_headerCellFillColor="@color/headerCellFillColor"
+            app:shtv_is2DScrollEnabled="true"
+            app:shtv_isDisplayLeftHeadersVertically="true"
+            app:shtv_isWrapHeightOfEachRow="true"
+            app:shtv_isWrapWidthOfEachColumn="true"
+            app:shtv_textHeaderColor="@color/textHeaderColor"
+            app:shtv_textHeaderSize="18dp"
+            app:shtv_textLabelColor="@color/textLabelColor"
+            app:shtv_textLabelSize="14dp" />
 
     In your activity/fragment
 
@@ -123,6 +126,8 @@ in TableView, to overcome this kind of data representation I have created this v
 
     2. If you are putting this view in the Horizontal ScrollView than you can not set this view's width fixed.
     <br/>You should use width wrap_content then it will work fine.
+    
+    <link
 
 
 ## Changelogs:
