@@ -10,11 +10,11 @@ in TableView, to overcome this kind of data representation I have created this v
 https://user-images.githubusercontent.com/23657151/150146704-099dfd60-3103-4024-9957-0cd01bf7054a.mp4
 
 ## Uses:
-1. copy-past the package "stickyheadertableview" in your package.
+1. Copy-Past the package "stickyheadertableview" in your package.
 
 2. Copy the styleable StickyHeaderTableView from "res/value/attr.xml" file and past it to your res/value/attr.xml file
 
-3. That's it. You can check MainActivity.java and activity_main.xml for demo. Or you can use below codes:
+3. Now you can use below codes or see [/app/src/main/java/sticky/header/tableview/MainActivity.kt](MainActivity.kt) and [/app/src/main/java/res/layout/activity_main.xml](activity_main.xml) for demo.
 
     In your xml layout file
 
@@ -39,7 +39,7 @@ https://user-images.githubusercontent.com/23657151/150146704-099dfd60-3103-4024-
 
     In your activity/fragment
 
-        val stickyHeaderTableView = findViewById<View>(R.id.stickyHeaderTableView) as StickyHeaderTableView
+        val stickyHeaderTableView = findViewById<StickyHeaderTableView>(R.id.stickyHeaderTableView)
         stickyHeaderTableView.data = getDummyData()
         stickyHeaderTableView.setOnTableCellClickListener { rowPosition, columnPosition ->
             Toast.makeText(
@@ -126,9 +126,6 @@ https://user-images.githubusercontent.com/23657151/150146704-099dfd60-3103-4024-
 
     2. If you are putting this view in the Horizontal ScrollView than you can not set this view's width fixed.
     <br/>You should use width wrap_content then it will work fine.
-    
-    <link
-
 
 ## Changelogs:
 DD/MM/YYYY : Who : What<br/>

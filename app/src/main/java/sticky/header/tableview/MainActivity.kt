@@ -1,7 +1,6 @@
 package sticky.header.tableview
 
 import android.os.Bundle
-import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import sticky.header.tableview.stickyheadertableview.StickyHeaderTableView
@@ -16,8 +15,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initComponents() {
-        val stickyHeaderTableView =
-            findViewById<View>(R.id.stickyHeaderTableView) as StickyHeaderTableView
+        val stickyHeaderTableView = findViewById<StickyHeaderTableView>(R.id.stickyHeaderTableView)
         stickyHeaderTableView.data = getDummyData()
         stickyHeaderTableView.setOnTableCellClickListener { rowPosition, columnPosition ->
             Toast.makeText(
