@@ -126,6 +126,6 @@ in TableView, to overcome this kind of data representation I have created this v
 
 
 ## Changelogs:
-DD/MM/YYYY :	Who		: What<br/>
-11/08/2016 :	Mitul   : Created View by Mitul Varmora<br/>
-19/01/2022 :    Mitul   : Rebase Custom View on top of latest new Android Studio Project and use jetpack<br/>
+DD/MM/YYYY : Who : What<br/>
+11/08/2016 : Mitul : Created View by Mitul Varmora<br/>
+19/01/2022 : Mitul : Rebase Custom View on top of latest new Android Studio Project and use jetpack<br/>
