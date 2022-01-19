@@ -11,7 +11,7 @@ in TableView, to overcome this kind of data representation I have created this v
 
 2. Copy the styleable StickyHeaderTableView from "res/value/attr.xml" file and past it to your res/value/attr.xml file
 
-3. That's it. You can check MainActivity.java and activity_main.xml for demo.<br/><br/>Or you can use below codes
+3. That's it. You can check MainActivity.java and activity_main.xml for demo. Or you can use below codes:
 
     In your xml layout file
 
@@ -34,44 +34,52 @@ in TableView, to overcome this kind of data representation I have created this v
             app:textLabelColor="@color/textLabelColor"
             app:textLabelSize="14dp" />
 
-    You can use java code like this
+    In your activity/fragment
 
-        StickyHeaderTableView stickyHeaderTableView = (StickyHeaderTableView) findViewById(R.id.stickyHeaderTableView);
-        stickyHeaderTableView.setData(strings);
-        stickyHeaderTableView.setOnTableCellClickListener(new OnTableCellClickListener() {
-           @Override
-           public void onTableCellClicked(int rowPosition, int columnPosition) {
-               Toast.makeText(context, "Row: " + rowPosition + ", Column: " + columnPosition, Toast.LENGTH_SHORT).show();
-           }
-        });
+        val stickyHeaderTableView = findViewById<View>(R.id.stickyHeaderTableView) as StickyHeaderTableView
+        stickyHeaderTableView.data = getDummyData()
+        stickyHeaderTableView.setOnTableCellClickListener { rowPosition, columnPosition ->
+            Toast.makeText(
+                this@MainActivity,
+                "Row: $rowPosition, Column: $columnPosition",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
 
-    stickyHeaderTableView.setData(strings) is String[][] array you have to set.<br/><br/>
-    For demo you can prepare it like below
+        // For Nested Scrolling
+        //stickyHeaderTableView.isNestedScrollingEnabled = true
+        //stickyHeaderTableView.setNestedScrollAxis(ViewCompat.SCROLL_AXIS_VERTICAL)
 
-        int row = 15;
-        int column = 20;
-        String[][] strings = new String[row][column];
-        for (int i = -1; i < row - 1; i++) {
-            for (int j = -1; j < column - 1; j++) {
-                if (i == -1 && j == -1) {
-                    // Top left most cell
-                    strings[0][0] = "0,0";
-                } else if (i == -1) {
-                    // Top most cells (top headers)
-                    strings[i + 1][j + 1] = "C " + String.valueOf(j+1);
-                } else if (j == -1) {
-                    // Left most cells (left headers)
-                    strings[i + 1][j + 1] = "R " + String.valueOf(i+1);
-                } else {
-                    // Other value content cells
-                    strings[i + 1][j + 1] = String.valueOf(i+1) + "," + String.valueOf(j+1);
+    And here is getDummyData() method
+
+        private fun getDummyData(): Array<Array<String?>> {
+            val row = 31
+            val column = 31
+
+            val strings = Array(row) {
+                arrayOfNulls<String>(column)
+            }
+
+            for (i in -1 until row - 1) {
+                for (j in -1 until column - 1) {
+                    if (i == -1 && j == -1) {
+                        strings[0][0] = "0,0"
+                    } else if (i == -1) {
+                        strings[i + 1][j + 1] = "C " + (j + 1).toString()
+                    } else if (j == -1) {
+                        strings[i + 1][j + 1] = "R " + (i + 1).toString()
+                    } else {
+                        strings[i + 1][j + 1] = (i + 1).toString() + "," + (j + 1).toString()
+                    }
                 }
             }
+
+            strings[3][0] = "R 3 Big"
+            strings[0][2] = "C 2 Big"
+            strings[7][5] = "7,5 larger"
+
+            return strings
         }
-        // Optional header cell modifications
-        strings[3][0] = "R 3 Big"
-        strings[0][2] = "C 2 Big"
-        strings[7][5] = "7,5 larger"
 
     Below are all available setter methods (It has respective getter methods too)
 
@@ -109,16 +117,15 @@ in TableView, to overcome this kind of data representation I have created this v
         setNestedScrollingEnabled(boolean enabled)
         setNestedScrollAxis(int nestedScrollAxis) // ViewCompat.SCROLL_AXIS_HORIZONTAL or ViewCompat.SCROLL_AXIS_VERTICAL
 
-    Precaution:<br/><br/>
-
+    Precaution:<br/>
     1. If you are putting this view in the Vertical ScrollView than you can not set this view's height fixed.
-    <br/><br/>You should use height wrap_content than it will work fine.
+    <br/>You should use height wrap_content than it will work fine.
 
     2. If you are putting this view in the Horizontal ScrollView than you can not set this view's width fixed.
-    <br/><br/>You should use width wrap_content than it will work fine.
+    <br/>You should use width wrap_content than it will work fine.
 
 
 ## Changelogs:
-DD/MM/YYYY :	Who		: What
-11/08/2016 :	Mitul   : Created View by Mitul Varmora
-19/01/2022 :    Mitul   : Rebase Custom View on top of latest new Android Studio Project and use jetpack
+DD/MM/YYYY :	Who		: What<br/>
+11/08/2016 :	Mitul   : Created View by Mitul Varmora<br/>
+19/01/2022 :    Mitul   : Rebase Custom View on top of latest new Android Studio Project and use jetpack<br/>

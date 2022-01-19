@@ -18,9 +18,7 @@ class MainActivity : AppCompatActivity() {
     private fun initComponents() {
         val stickyHeaderTableView =
             findViewById<View>(R.id.stickyHeaderTableView) as StickyHeaderTableView
-
         stickyHeaderTableView.data = getDummyData()
-
         stickyHeaderTableView.setOnTableCellClickListener { rowPosition, columnPosition ->
             Toast.makeText(
                 this@MainActivity,
@@ -29,8 +27,9 @@ class MainActivity : AppCompatActivity() {
             ).show()
         }
 
-//        stickyHeaderTableView.isNestedScrollingEnabled = true
-//        stickyHeaderTableView.setNestedScrollAxis(ViewCompat.SCROLL_AXIS_VERTICAL)
+        // For Nested Scrolling
+        //stickyHeaderTableView.isNestedScrollingEnabled = true
+        //stickyHeaderTableView.setNestedScrollAxis(ViewCompat.SCROLL_AXIS_VERTICAL)
     }
 
     private fun getDummyData(): Array<Array<String?>> {
