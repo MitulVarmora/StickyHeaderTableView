@@ -119,10 +119,10 @@ in TableView, to overcome this kind of data representation I have created this v
 
     Precaution:<br/>
     1. If you are putting this view in the Vertical ScrollView than you can not set this view's height fixed.
-    <br/>You should use height wrap_content than it will work fine.
+    <br/>You should use height wrap_content then it will work fine.
 
     2. If you are putting this view in the Horizontal ScrollView than you can not set this view's width fixed.
-    <br/>You should use width wrap_content than it will work fine.
+    <br/>You should use width wrap_content then it will work fine.
 
 
 ## Changelogs:
