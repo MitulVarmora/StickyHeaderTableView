@@ -588,136 +588,159 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-
         if (data == null) {
             return;
         }
+
+        int cellLeftX;
+        int cellTopY = scrolledRect.top;
+        int cellRightX;
+        int cellBottomY = scrolledRect.top + getHeightOfRow(0);
+        int halfDividerThickness = dividerThickness / 2;
 
         float drawTextX;
         float drawTextY;
         String textToDraw;
 
-        // *************************** below code will draw contents **************************
-        int cellLeftX;
-        int cellTopY = scrolledRect.top;
-        int cellRightX;
-        int cellBottomY = scrolledRect.top + getHeightOfRow(0);
-
-        int halfDividerThickness = dividerThickness / 2;
+        // *************************** Calculate each cells to draw **************************
+        // This is top-left most cell (0,0)
+        updateRectPointData(0, 0, halfDividerThickness, halfDividerThickness, getWidthOfColumn(0), getHeightOfRow(0));
 
         for (int i = 0; i < data.length; i++) {
-
             cellRightX = scrolledRect.left;
-
-            if (i != 0) {
-
-                for (int j = 0; j < data[0].length; j++) {
-
-                    cellLeftX = cellRightX;
+            int heightOfRowI = getHeightOfRow(i);
+            if (i == 0) {
+                cellTopY = halfDividerThickness;
+                for (int j = 0; j < data[i].length; j++) {
+                    cellLeftX = cellRightX - halfDividerThickness;
                     cellRightX += getWidthOfColumn(j);
-                    textToDraw = data[i][j];
-
                     if (j != 0) {
-                        updateRectPointData(i, j, cellLeftX - halfDividerThickness, cellTopY - halfDividerThickness, cellRightX, cellBottomY);
-                        canvas.drawRect(cellLeftX - halfDividerThickness, cellTopY - halfDividerThickness, cellRightX, cellBottomY, paintContentCellFillRect);
+                        // This are top header cells (0,*)
+                        updateRectPointData(i, j, cellLeftX, cellTopY, cellRightX, heightOfRowI);
+                    }
+                }
+                cellBottomY = scrolledRect.top + getHeightOfRow(i);
+            } else {
+                // These are content cells
+                for (int j = 0; j < data[0].length; j++) {
+                    cellLeftX = cellRightX - halfDividerThickness;
+                    cellRightX += getWidthOfColumn(j);
+                    if (j != 0) {
+                        updateRectPointData(i, j, cellLeftX, cellTopY, cellRightX, cellBottomY);
+                    }
+                }
+
+                // This are left header cells (*,0)
+                cellRightX = 0;
+                cellLeftX = cellRightX + halfDividerThickness;
+                cellRightX += getWidthOfColumn(0);
+                updateRectPointData(i, 0, cellLeftX, cellTopY, cellRightX, cellBottomY);
+            }
+            cellTopY = cellBottomY - halfDividerThickness;
+            cellBottomY = cellBottomY + getHeightOfRow(i + 1);
+        }
+
+        // ******************** Draw contents & left headers ********************
+        boolean isLeftVisible;
+        boolean isTopVisible;
+        boolean isRightVisible;
+        boolean isBottomVisible;
+
+        for (int i = 1; i < data.length; i++) {
+            isTopVisible = rectEachCellBoundData[i][0].top >= rectEachCellBoundData[0][0].bottom
+                    && rectEachCellBoundData[i][0].top <= visibleContentRect.bottom;
+            isBottomVisible = rectEachCellBoundData[i][0].bottom >= rectEachCellBoundData[0][0].bottom
+                    && rectEachCellBoundData[i][0].bottom <= visibleContentRect.bottom;
+
+            if (isTopVisible || isBottomVisible) {
+
+                // ******************** Draw contents ********************
+                for (int j = 1; j < data[i].length; j++) {
+                    isLeftVisible = rectEachCellBoundData[i][j].left >= rectEachCellBoundData[i][0].right
+                            && rectEachCellBoundData[i][j].left <= visibleContentRect.right;
+                    isRightVisible = rectEachCellBoundData[i][j].right >= rectEachCellBoundData[i][0].right
+                            && rectEachCellBoundData[i][j].right <= visibleContentRect.right;
+
+                    if (isLeftVisible || isRightVisible) {
+                        canvas.drawRect(rectEachCellBoundData[i][j].left, rectEachCellBoundData[i][j].top, rectEachCellBoundData[i][j].right, rectEachCellBoundData[i][j].bottom, paintContentCellFillRect);
                         if (dividerThickness != 0) {
-                            canvas.drawRect(cellLeftX - halfDividerThickness, cellTopY - halfDividerThickness, cellRightX, cellBottomY, paintStrokeRect);
+                            canvas.drawRect(rectEachCellBoundData[i][j].left, rectEachCellBoundData[i][j].top, rectEachCellBoundData[i][j].right, rectEachCellBoundData[i][j].bottom, paintStrokeRect);
                         }
+
+                        textToDraw = data[i][j];
                         paintLabelText.getTextBounds(textToDraw, 0, textToDraw.length(), textRectBounds);
 
-                        drawTextX = cellRightX - (getWidthOfColumn(j) / 2f) - (textRectBounds.width() / 2f);
-                        drawTextY = cellBottomY - (getHeightOfRow(i) / 2f) + (textRectBounds.height() / 2f);
+                        drawTextX = rectEachCellBoundData[i][j].right - (getWidthOfColumn(j) / 2f) - (textRectBounds.width() / 2f);
+                        drawTextY = rectEachCellBoundData[i][j].bottom - (getHeightOfRow(i) / 2f) + (textRectBounds.height() / 2f);
 
                         canvas.drawText(textToDraw, 0, textToDraw.length(), drawTextX, drawTextY, paintLabelText);
                     }
                 }
-            }
-            cellTopY = cellBottomY;
-            cellBottomY = cellBottomY + getHeightOfRow(i + 1);
-        }
 
-
-        // *************************** below code will draw headers ***************************
-        cellTopY = scrolledRect.top;
-        cellBottomY = scrolledRect.top + getHeightOfRow(0);
-
-        for (int i = 0; i < data.length; i++) {
-
-            cellRightX = scrolledRect.left;
-
-            if (i == 0) {
-                cellTopY = halfDividerThickness;
-                cellBottomY = getHeightOfRow(i);
-                for (int j = 0; j < data[0].length; j++) {
-                    cellLeftX = cellRightX;
-                    cellRightX += getWidthOfColumn(j);
-
-                    if (j != 0) {
-                        // This are top header cells (0,*)
-                        updateRectPointData(i, j, cellLeftX - halfDividerThickness, cellTopY, cellRightX, cellBottomY);
-                        canvas.drawRect(cellLeftX - halfDividerThickness, cellTopY, cellRightX, cellBottomY, paintHeaderCellFillRect);
-                        if (dividerThickness != 0) {
-                            canvas.drawRect(cellLeftX - halfDividerThickness, cellTopY, cellRightX, cellBottomY, paintStrokeRect);
-                        }
-                        textToDraw = data[i][j];
-                        paintHeaderText.getTextBounds(textToDraw, 0, textToDraw.length(), textRectBounds);
-
-                        drawTextX = cellRightX - (getWidthOfColumn(j) / 2f) - (textRectBounds.width() / 2f);
-                        drawTextY = cellBottomY - (getHeightOfRow(i) / 2f) + (textRectBounds.height() / 2f);
-
-                        canvas.drawText(textToDraw, 0, textToDraw.length(), drawTextX, drawTextY, paintHeaderText);
-                    }
-                }
-                cellBottomY = scrolledRect.top + getHeightOfRow(i);
-
-            } else {
-                // This are left header cells (*,0)
-                cellRightX = 0;
-                cellLeftX = cellRightX;
-                cellRightX += getWidthOfColumn(0);
-                textToDraw = data[i][0];
-
-                updateRectPointData(i, 0, cellLeftX - halfDividerThickness, cellTopY, cellRightX, cellBottomY);
-                canvas.drawRect(cellLeftX, cellTopY - halfDividerThickness, cellRightX, cellBottomY, paintHeaderCellFillRect);
+                // ******************** Draw left header (*,0) ********************
+                canvas.drawRect(rectEachCellBoundData[i][0].left, rectEachCellBoundData[i][0].top, rectEachCellBoundData[i][0].right, rectEachCellBoundData[i][0].bottom, paintHeaderCellFillRect);
                 if (dividerThickness != 0) {
-                    canvas.drawRect(cellLeftX, cellTopY - halfDividerThickness, cellRightX, cellBottomY, paintStrokeRect);
+                    canvas.drawRect(rectEachCellBoundData[i][0].left, rectEachCellBoundData[i][0].top, rectEachCellBoundData[i][0].right, rectEachCellBoundData[i][0].bottom, paintStrokeRect);
                 }
 
+                textToDraw = data[i][0];
                 paintHeaderText.getTextBounds(textToDraw, 0, textToDraw.length(), textRectBounds);
 
                 if (isDisplayLeftHeadersVertically) {
-
-                    drawTextX = cellRightX - (getWidthOfColumn(0) / 2f) + (textRectBounds.height() / 2f);
-                    drawTextY = cellBottomY - (getHeightOfRow(i) / 2f) + (textRectBounds.width() / 2f);
-
+                    drawTextX = rectEachCellBoundData[i][0].right - (getWidthOfColumn(0) / 2f) + (textRectBounds.height() / 2f);
+                    drawTextY = rectEachCellBoundData[i][0].bottom - (getHeightOfRow(i) / 2f) + (textRectBounds.width() / 2f);
                     canvas.save();
                     canvas.rotate(-90, drawTextX, drawTextY);
                     canvas.drawText(textToDraw, 0, textToDraw.length(), drawTextX, drawTextY, paintHeaderText);
                     canvas.restore();
-
                 } else {
-                    drawTextX = cellRightX - (getWidthOfColumn(0) / 2f) - (textRectBounds.width() / 2f);
-                    drawTextY = cellBottomY - (getHeightOfRow(i) / 2f) + (textRectBounds.height() / 2f);
+                    drawTextX = rectEachCellBoundData[i][0].right - (getWidthOfColumn(0) / 2f) - (textRectBounds.width() / 2f);
+                    drawTextY = rectEachCellBoundData[i][0].bottom - (getHeightOfRow(i) / 2f) + (textRectBounds.height() / 2f);
                     canvas.drawText(textToDraw, 0, textToDraw.length(), drawTextX, drawTextY, paintHeaderText);
                 }
             }
-            cellTopY = cellBottomY;
-            cellBottomY = cellBottomY + getHeightOfRow(i + 1);
         }
 
-        // This is top-left most cell (0,0)
-        updateRectPointData(0, 0, halfDividerThickness, halfDividerThickness, getWidthOfColumn(0), getHeightOfRow(0));
-        canvas.drawRect(halfDividerThickness, halfDividerThickness, getWidthOfColumn(0), getHeightOfRow(0), paintHeaderCellFillRect);
+        // ******************** Draw top headers (0,*) ********************
+        for (int j = 1; j < data[0].length; j++) {
+            isLeftVisible = rectEachCellBoundData[0][j].left >= rectEachCellBoundData[0][0].right
+                    && rectEachCellBoundData[0][j].left <= visibleContentRect.right;
+            isRightVisible = rectEachCellBoundData[0][j].right >= rectEachCellBoundData[0][0].right
+                    && rectEachCellBoundData[0][j].right <= visibleContentRect.right;
+
+            if (isLeftVisible || isRightVisible) {
+                canvas.drawRect(rectEachCellBoundData[0][j].left, rectEachCellBoundData[0][j].top, rectEachCellBoundData[0][j].right, rectEachCellBoundData[0][j].bottom, paintHeaderCellFillRect);
+                if (dividerThickness != 0) {
+                    canvas.drawRect(rectEachCellBoundData[0][j].left, rectEachCellBoundData[0][j].top, rectEachCellBoundData[0][j].right, rectEachCellBoundData[0][j].bottom, paintStrokeRect);
+                }
+                textToDraw = data[0][j];
+                paintHeaderText.getTextBounds(textToDraw, 0, textToDraw.length(), textRectBounds);
+
+                drawTextX = rectEachCellBoundData[0][j].right - (getWidthOfColumn(j) / 2f) - (textRectBounds.width() / 2f);
+                drawTextY = rectEachCellBoundData[0][j].bottom - (getHeightOfRow(0) / 2f) + (textRectBounds.height() / 2f);
+
+                canvas.drawText(textToDraw, 0, textToDraw.length(), drawTextX, drawTextY, paintHeaderText);
+            }
+        }
+
+        // ******************** Draw top-left most cell (0,0) ********************
+        canvas.drawRect(rectEachCellBoundData[0][0].left, rectEachCellBoundData[0][0].top, rectEachCellBoundData[0][0].right, rectEachCellBoundData[0][0].bottom, paintHeaderCellFillRect);
 
         if (dividerThickness != 0) {
-            canvas.drawRect(halfDividerThickness, halfDividerThickness, getWidthOfColumn(0), getHeightOfRow(0), paintStrokeRect);
+            canvas.drawRect(rectEachCellBoundData[0][0].left, rectEachCellBoundData[0][0].top, rectEachCellBoundData[0][0].right, rectEachCellBoundData[0][0].bottom, paintStrokeRect);
         }
+
         textToDraw = data[0][0];
         paintHeaderText.getTextBounds(textToDraw, 0, textToDraw.length(), textRectBounds);
 
         drawTextX = getWidthOfColumn(0) - (getWidthOfColumn(0) / 2f) - (textRectBounds.width() / 2f);
         drawTextY = getHeightOfRow(0) - (getHeightOfRow(0) / 2f) + (textRectBounds.height() / 2f);
         canvas.drawText(textToDraw, 0, textToDraw.length(), drawTextX, drawTextY, paintHeaderText);
+
+        // ******************** Draw whole view border same as cell border ********************
+        if (dividerThickness != 0) {
+            canvas.drawRect(visibleContentRect.left, visibleContentRect.top, visibleContentRect.right - halfDividerThickness, visibleContentRect.bottom - halfDividerThickness, paintStrokeRect);
+        }
     }
 
     private int getWidthOfColumn(int key) {
