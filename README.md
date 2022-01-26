@@ -7,7 +7,7 @@ content is bi-directionally scrollable. Android doesn't provide sticky header su
 in TableView, to overcome this kind of data representation I have created this view.
 
 ## Screen Recording (Sample):
-https://user-images.githubusercontent.com/23657151/150146704-099dfd60-3103-4024-9957-0cd01bf7054a.mp4
+https://user-images.githubusercontent.com/23657151/151113930-61f8516b-1775-404e-a536-e74be7df9101.mp4
 
 ## Uses:
 1. Copy-Past the package "stickyheadertableview" in your package.
@@ -131,3 +131,4 @@ https://user-images.githubusercontent.com/23657151/150146704-099dfd60-3103-4024-
 DD/MM/YYYY : Who : What<br/>
 11/08/2016 : Mitul : Created View by Mitul Varmora<br/>
 19/01/2022 : Mitul : Rebase Custom View on top of latest new Android Studio Project and use jetpack<br/>
+25/01/2022 : Mitul : Heavy performance improvements by just draw only cells which are visible to user<br/>
