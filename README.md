@@ -1,3 +1,5 @@
+[![GitHub stars](https://img.shields.io/github/stars/MitulVarmora/StickyHeaderTableView)](https://github.com/MitulVarmora/StickyHeaderTableView/stargazers) [![GitHub forks](https://img.shields.io/github/forks/MitulVarmora/StickyHeaderTableView)](https://github.com/MitulVarmora/StickyHeaderTableView/network) [![GitHub issues](https://img.shields.io/github/issues/MitulVarmora/StickyHeaderTableView)](https://github.com/MitulVarmora/StickyHeaderTableView/issues) [![GitHub license](https://img.shields.io/github/license/MitulVarmora/StickyHeaderTableView)](https://github.com/MitulVarmora/StickyHeaderTableView/blob/main/LICENSE.md)
+
 # StickyHeaderTableView
 The StickyHeaderTableView is a custom view which is created by extending View class of android
 
@@ -132,3 +134,26 @@ DD/MM/YYYY : Who : What<br/>
 11/08/2016 : Mitul : Created View by Mitul Varmora<br/>
 19/01/2022 : Mitul : Rebase Custom View on top of latest new Android Studio Project and use jetpack<br/>
 25/01/2022 : Mitul : Heavy performance improvements by just draw only cells which are visible to user<br/>
+
+## Licence:
+    MIT License
+
+    Copyright (c) 2022 Mitul Varmora
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy 
+    of this software and associated documentation files (the "Software"), to deal 
+    in the Software without restriction, including without limitation the rights 
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+    copies of the Software, and to permit persons to whom the Software is 
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all 
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+    SOFTWARE.
