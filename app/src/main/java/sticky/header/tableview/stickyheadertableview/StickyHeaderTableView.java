@@ -1,6 +1,5 @@
 package sticky.header.tableview.stickyheadertableview;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
@@ -22,12 +21,11 @@ import androidx.core.view.ViewCompat;
 import sticky.header.tableview.R;
 
 /**
- * Created by Mitul Varmora on 11/8/2016.
  * StickyHeaderTableView
  */
-@SuppressWarnings("unused")
 public class StickyHeaderTableView extends View implements NestedScrollingChild {
 
+    //region Variables
     private final Paint paintStrokeRect = new Paint();
     private final Paint paintHeaderCellFillRect = new Paint();
     private final Paint paintContentCellFillRect = new Paint();
@@ -46,18 +44,20 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
      * Actual rect size of canvas drawn content (Which may be larger or smaller than mobile screen)
      */
     private final Rect actualContentRect = new Rect(0, 0, 0, 0);
+
     // below variables are used for fling animation (Not for scrolling)
     private final DecelerateInterpolator animateInterpolator = new DecelerateInterpolator();
-    private NestedScrollingChildHelper nestedScrollingChildHelper;
+    private final NestedScrollingChildHelper nestedScrollingChildHelper = new NestedScrollingChildHelper(this);
     private int NESTED_SCROLL_AXIS = ViewCompat.SCROLL_AXIS_NONE;
     private OnTableCellClickListener onTableCellClickListener = null;
     private boolean isScrollingHorizontally = false;
     private boolean isScrollingVertically = false;
     /**
-     * This is used to stop fling animation if user has touch intercepted
+     * This is used to stop fling animation if user touch view during fling animation
      */
     private boolean isFlinging = false;
-    // Below are configurable variables via xml (also can be used via setter methods)
+
+    //region Configurable variables via xml or setter methods
     private boolean isDisplayLeftHeadersVertically = false;
     private boolean is2DScrollingEnabled;
     private boolean isWrapHeightOfEachRow = false;
@@ -71,6 +71,8 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
     private int headerCellFillColor;
     private int contentCellFillColor;
     private int cellPadding;
+    //endregion
+
     /**
      * Used to identify clicked position for #OnTableCellClickListener
      */
@@ -80,16 +82,168 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
     private int maxHeightOfCell = 0;
     private SparseIntArray maxHeightSparseIntArray = new SparseIntArray();
     private SparseIntArray maxWidthSparseIntArray = new SparseIntArray();
+
     /**
      * Used for scroll events
      */
-    private GestureDetector gestureDetector;
+    private final GestureDetector.SimpleOnGestureListener simpleOnGestureListener = new GestureDetector.SimpleOnGestureListener() {
+
+        public boolean onDown(MotionEvent e) {
+            if (isNestedScrollingEnabled()) {
+                startNestedScroll(NESTED_SCROLL_AXIS);
+            }
+            if (isFlinging) {
+                isFlinging = false;
+            }
+            return true;
+        }
+
+        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            if (isNestedScrollingEnabled()) {
+                dispatchNestedPreFling(velocityX, velocityY);
+            }
+
+            if (!canScrollHorizontally() && !canScrollVertically()) {
+                return false;
+            }
+
+            final float distanceTimeFactor = 0.4f;
+            totalAnimDx = (distanceTimeFactor * velocityX / 2);
+            totalAnimDy = (distanceTimeFactor * velocityY / 2);
+            lastAnimDx = 0;
+            lastAnimDy = 0;
+            startTime = System.currentTimeMillis();
+            endTime = startTime + (long) (1000 * distanceTimeFactor);
+
+            float deltaY = e2.getY() - e1.getY();
+            float deltaX = e2.getX() - e1.getX();
+
+            if (!is2DScrollingEnabled) {
+                if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                    isScrollingHorizontally = true;
+                } else {
+                    isScrollingVertically = true;
+                }
+            }
+            isFlinging = true;
+
+            if (onFlingAnimateStep()) {
+                if (isNestedScrollingEnabled()) {
+                    dispatchNestedFling(-velocityX, -velocityY, true);
+                }
+                return true;
+            } else {
+                if (isNestedScrollingEnabled()) {
+                    dispatchNestedFling(-velocityX, -velocityY, false);
+                }
+                return false;
+            }
+
+        }
+
+        public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+
+            if (isNestedScrollingEnabled()) {
+                dispatchNestedPreScroll((int) distanceX, (int) distanceY, null, null);
+            }
+
+            boolean isScrolled;
+
+            if (is2DScrollingEnabled) {
+                isScrolled = scroll2D(distanceX, distanceY);
+            } else {
+
+                if (isScrollingHorizontally) {
+                    isScrolled = scrollHorizontal(distanceX);
+                } else if (isScrollingVertically) {
+                    isScrolled = scrollVertical(distanceY);
+                } else {
+
+                    float deltaY = e2.getY() - e1.getY();
+                    float deltaX = e2.getX() - e1.getX();
+
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                        // if deltaX > 0 : the user made a sliding right gesture
+                        // else : the user made a sliding left gesture
+                        isScrollingHorizontally = true;
+                        isScrolled = scrollHorizontal(distanceX);
+                    } else {
+                        // if deltaY > 0 : the user made a sliding down gesture
+                        // else : the user made a sliding up gesture
+                        isScrollingVertically = true;
+                        isScrolled = scrollVertical(distanceY);
+                    }
+                }
+            }
+
+            // Fix scrolling (if any parent view is scrollable in layout hierarchy,
+            // than this will disallow intercepting touch event)
+            if (getParent() != null && isScrolled) {
+                getParent().requestDisallowInterceptTouchEvent(true);
+            }
+
+            if (isScrolled) {
+                if (isNestedScrollingEnabled()) {
+                    dispatchNestedScroll((int) distanceX, (int) distanceY, 0, 0, null);
+                }
+            } else {
+                if (isNestedScrollingEnabled()) {
+                    dispatchNestedScroll(0, 0, (int) distanceX, (int) distanceY, null);
+                }
+            }
+
+            return isScrolled;
+        }
+
+        public boolean onSingleTapUp(MotionEvent e) {
+
+            if (onTableCellClickListener != null) {
+
+                final float x = e.getX();
+                final float y = e.getY();
+
+                boolean isEndLoop = false;
+
+                for (int i = 0; i < rectEachCellBoundData.length; i++) {
+
+                    if (rectEachCellBoundData[i][0].top <= y && rectEachCellBoundData[i][0].bottom >= y) {
+
+                        for (int j = 0; j < rectEachCellBoundData[0].length; j++) {
+
+                            if (rectEachCellBoundData[i][j].left <= x && rectEachCellBoundData[i][j].right >= x) {
+                                isEndLoop = true;
+                                onTableCellClickListener.onTableCellClicked(i, j);
+                                break;
+                            }
+                        }
+                    }
+                    if (isEndLoop) {
+                        break;
+                    }
+                }
+            }
+
+            return super.onSingleTapUp(e);
+        }
+
+        public void onLongPress(MotionEvent e) {
+            super.onLongPress(e);
+        }
+
+        public boolean onDoubleTapEvent(MotionEvent e) {
+            return super.onDoubleTapEvent(e);
+        }
+    };
+    private final GestureDetector gestureDetector = new GestureDetector(getContext(), simpleOnGestureListener);
     private long startTime;
     private long endTime;
     private float totalAnimDx;
     private float totalAnimDy;
     private float lastAnimDx;
     private float lastAnimDy;
+    //endregion Variables
+
+    //region Constructor and setup methods
 
     public StickyHeaderTableView(Context context) {
         this(context, null, 0);
@@ -137,34 +291,28 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
                         R.styleable.StickyHeaderTableView_shtv_contentCellFillColor, Color.TRANSPARENT);
 
             } catch (Exception e) {
-                textLabelColor = Color.BLACK;
-                textHeaderColor = Color.BLACK;
-                dividerColor = Color.BLACK;
-                textLabelSize = defaultTextSize;
-                textHeaderSize = defaultTextSize;
-                dividerThickness = 0;
-                cellPadding = 0;
-                is2DScrollingEnabled = false;
-                headerCellFillColor = Color.TRANSPARENT;
-                contentCellFillColor = Color.TRANSPARENT;
+                setupDefaultVariableValue(defaultTextSize);
             } finally {
                 a.recycle();
             }
         } else {
-            textLabelColor = Color.BLACK;
-            textHeaderColor = Color.BLACK;
-            dividerColor = Color.BLACK;
-            textLabelSize = defaultTextSize;
-            textHeaderSize = defaultTextSize;
-            dividerThickness = 0;
-            cellPadding = 0;
-            is2DScrollingEnabled = false;
-            headerCellFillColor = Color.TRANSPARENT;
-            contentCellFillColor = Color.TRANSPARENT;
+            setupDefaultVariableValue(defaultTextSize);
         }
 
         setupPaint();
-        setupScrolling();
+    }
+
+    private void setupDefaultVariableValue(int defaultTextSize) {
+        textLabelColor = Color.BLACK;
+        textHeaderColor = Color.BLACK;
+        dividerColor = Color.BLACK;
+        textLabelSize = defaultTextSize;
+        textHeaderSize = defaultTextSize;
+        dividerThickness = 0;
+        cellPadding = 0;
+        is2DScrollingEnabled = false;
+        headerCellFillColor = Color.TRANSPARENT;
+        contentCellFillColor = Color.TRANSPARENT;
     }
 
     private void setupPaint() {
@@ -189,161 +337,7 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
         paintHeaderText.setTextAlign(Paint.Align.LEFT);
     }
 
-    private void setupScrolling() {
-
-        nestedScrollingChildHelper = new NestedScrollingChildHelper(this);
-
-        GestureDetector.SimpleOnGestureListener simpleOnGestureListener = new GestureDetector.SimpleOnGestureListener() {
-
-            public boolean onDown(MotionEvent e) {
-                if (isNestedScrollingEnabled()) {
-                    startNestedScroll(NESTED_SCROLL_AXIS);
-                }
-                if (isFlinging) {
-                    isFlinging = false;
-                }
-                return true;
-            }
-
-            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-                if (isNestedScrollingEnabled()) {
-                    dispatchNestedPreFling(velocityX, velocityY);
-                }
-
-                if (!canScrollHorizontally() && !canScrollVertically()) {
-                    return false;
-                }
-
-                final float distanceTimeFactor = 0.4f;
-                totalAnimDx = (distanceTimeFactor * velocityX / 2);
-                totalAnimDy = (distanceTimeFactor * velocityY / 2);
-                lastAnimDx = 0;
-                lastAnimDy = 0;
-                startTime = System.currentTimeMillis();
-                endTime = startTime + (long) (1000 * distanceTimeFactor);
-
-                float deltaY = e2.getY() - e1.getY();
-                float deltaX = e2.getX() - e1.getX();
-
-                if (!is2DScrollingEnabled) {
-                    if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                        isScrollingHorizontally = true;
-                    } else {
-                        isScrollingVertically = true;
-                    }
-                }
-                isFlinging = true;
-
-                if (onFlingAnimateStep()) {
-                    if (isNestedScrollingEnabled()) {
-                        dispatchNestedFling(-velocityX, -velocityY, true);
-                    }
-                    return true;
-                } else {
-                    if (isNestedScrollingEnabled()) {
-                        dispatchNestedFling(-velocityX, -velocityY, false);
-                    }
-                    return false;
-                }
-
-            }
-
-            public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-
-                if (isNestedScrollingEnabled()) {
-                    dispatchNestedPreScroll((int) distanceX, (int) distanceY, null, null);
-                }
-
-                boolean isScrolled;
-
-                if (is2DScrollingEnabled) {
-                    isScrolled = scroll2D(distanceX, distanceY);
-                } else {
-
-                    if (isScrollingHorizontally) {
-                        isScrolled = scrollHorizontal(distanceX);
-                    } else if (isScrollingVertically) {
-                        isScrolled = scrollVertical(distanceY);
-                    } else {
-
-                        float deltaY = e2.getY() - e1.getY();
-                        float deltaX = e2.getX() - e1.getX();
-
-                        if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                            // if deltaX > 0 : the user made a sliding right gesture
-                            // else : the user made a sliding left gesture
-                            isScrollingHorizontally = true;
-                            isScrolled = scrollHorizontal(distanceX);
-                        } else {
-                            // if deltaY > 0 : the user made a sliding down gesture
-                            // else : the user made a sliding up gesture
-                            isScrollingVertically = true;
-                            isScrolled = scrollVertical(distanceY);
-                        }
-                    }
-                }
-
-                // Fix scrolling (if any parent view is scrollable in layout hierarchy,
-                // than this will disallow intercepting touch event)
-                if (getParent() != null && isScrolled) {
-                    getParent().requestDisallowInterceptTouchEvent(true);
-                }
-
-                if (isScrolled) {
-                    if (isNestedScrollingEnabled()) {
-                        dispatchNestedScroll((int) distanceX, (int) distanceY, 0, 0, null);
-                    }
-                } else {
-                    if (isNestedScrollingEnabled()) {
-                        dispatchNestedScroll(0, 0, (int) distanceX, (int) distanceY, null);
-                    }
-                }
-
-                return isScrolled;
-            }
-
-            public boolean onSingleTapUp(MotionEvent e) {
-
-                if (onTableCellClickListener != null) {
-
-                    final float x = e.getX();
-                    final float y = e.getY();
-
-                    boolean isEndLoop = false;
-
-                    for (int i = 0; i < rectEachCellBoundData.length; i++) {
-
-                        if (rectEachCellBoundData[i][0].top <= y && rectEachCellBoundData[i][0].bottom >= y) {
-
-                            for (int j = 0; j < rectEachCellBoundData[0].length; j++) {
-
-                                if (rectEachCellBoundData[i][j].left <= x && rectEachCellBoundData[i][j].right >= x) {
-                                    isEndLoop = true;
-                                    onTableCellClickListener.onTableCellClicked(i, j);
-                                    break;
-                                }
-                            }
-                        }
-                        if (isEndLoop) {
-                            break;
-                        }
-                    }
-                }
-
-                return super.onSingleTapUp(e);
-            }
-
-            public void onLongPress(MotionEvent e) {
-                super.onLongPress(e);
-            }
-
-            public boolean onDoubleTapEvent(MotionEvent e) {
-                return super.onDoubleTapEvent(e);
-            }
-
-        };
-        gestureDetector = new GestureDetector(getContext(), simpleOnGestureListener);
-    }
+    //endregion Constructor and setup methods
 
     /**
      * This will start fling animation
@@ -780,7 +774,6 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
         }
     }
 
-    @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         super.onTouchEvent(event);
@@ -813,6 +806,9 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
             requestLayout();
         }
     }
+
+
+    //region Scrolling methods
 
     /**
      * Check if content width is bigger than  view width
@@ -978,23 +974,10 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
         return scrolledRect.left < visibleContentRect.left;
     }
 
+    //endregion Scrolling methods
 
-    // *************************** implemented NestedScrollChild methods *******************************************
 
-    @Override
-    public boolean isNestedScrollingEnabled() {
-        return nestedScrollingChildHelper.isNestedScrollingEnabled();
-    }
-
-    @Override
-    public void setNestedScrollingEnabled(boolean enabled) {
-        nestedScrollingChildHelper.setNestedScrollingEnabled(enabled);
-    }
-
-    @Override
-    public boolean hasNestedScrollingParent() {
-        return nestedScrollingChildHelper.hasNestedScrollingParent();
-    }
+    //region NestedScrollingChild methods
 
     /**
      * default Nested scroll axis is ViewCompat.SCROLL_AXIS_NONE <br/>
@@ -1015,6 +998,21 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
                 NESTED_SCROLL_AXIS = ViewCompat.SCROLL_AXIS_NONE;
                 break;
         }
+    }
+
+    @Override
+    public boolean isNestedScrollingEnabled() {
+        return nestedScrollingChildHelper.isNestedScrollingEnabled();
+    }
+
+    @Override
+    public void setNestedScrollingEnabled(boolean enabled) {
+        nestedScrollingChildHelper.setNestedScrollingEnabled(enabled);
+    }
+
+    @Override
+    public boolean hasNestedScrollingParent() {
+        return nestedScrollingChildHelper.hasNestedScrollingParent();
     }
 
     @Override
@@ -1053,7 +1051,10 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
         nestedScrollingChildHelper.onDetachedFromWindow();
     }
 
-    // *************************** Getter/Setter methods *******************************************
+    //endregion NestedScrollingChild methods
+
+
+    //region Getter/Setter methods
 
     /**
      * @return data which is previously set by setData(data) method. otherwise null.
@@ -1328,4 +1329,6 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
     public Rect getActualContentRect() {
         return actualContentRect;
     }
+
+    //endregion Getter/Setter methods
 }
