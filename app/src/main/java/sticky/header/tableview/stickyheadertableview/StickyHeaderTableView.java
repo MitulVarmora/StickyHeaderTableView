@@ -28,7 +28,8 @@ import sticky.header.tableview.R;
  */
 public class StickyHeaderTableView extends View implements NestedScrollingChild {
 
-    private final Paint paintStrokeRect = new Paint();
+    //region Configurable variables via xml or setter methods
+    private List<List<String>> data = null;
     private boolean isDisplayLeftHeadersVertically = false;
     private boolean is2DScrollingEnabled;
     private boolean isWrapHeightOfEachRow = false;
@@ -45,19 +46,18 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
     //endregion Configurable variables via xml or setter methods
 
     //region Variables for drawing
-    /**
-     * Visible rect size of view which is displayed on screen
-     */
-    private final Rect visibleContentRect = new Rect(0, 0, 0, 0);
+
+    private final Paint paintStrokeRect = new Paint();
     private final Paint paintHeaderCellFillRect = new Paint();
     private final Paint paintContentCellFillRect = new Paint();
     private final Paint paintLabelText = new Paint();
     private final Paint paintHeaderText = new Paint();
     private final Rect textRectBounds = new Rect();
+
     /**
-     * based on scrolling this rect value will update
+     * Used to draw cells on canvas and identify clicked position for #OnTableCellClickListener
      */
-    private final Rect scrolledRect = new Rect(0, 0, 0, 0);
+    private Rect[][] cellsRectangles = new Rect[][]{};
     private int maxWidthOfCell = 0;
     private int maxHeightOfCell = 0;
     private SparseIntArray maxHeightSparseIntArray = new SparseIntArray();
@@ -66,8 +66,15 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
     //endregion Variables for drawing
 
     //region Variables for boundary of the View
-    private final DecelerateInterpolator flingAnimInterpolator = new DecelerateInterpolator();
-    private final GestureDetector gestureDetector = new GestureDetector(getContext(), simpleOnGestureListener);
+
+    /**
+     * Visible rect size of view which is displayed on screen
+     */
+    private final Rect visibleContentRect = new Rect(0, 0, 0, 0);
+    /**
+     * based on scrolling this rect value will update
+     */
+    private final Rect scrolledRect = new Rect(0, 0, 0, 0);
     /**
      * Actual rect size of canvas drawn content (Which may be larger or smaller than mobile screen)
      */
@@ -362,7 +369,12 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
         }
     }
 
-    private final NestedScrollingChildHelper nestedScrollingChildHelper = new NestedScrollingChildHelper(this);
+    @Override
+    protected void onSizeChanged(int w, int h, int oldW, int oldH) {
+        super.onSizeChanged(w, h, oldW, oldH);
+
+        visibleContentRect.set(0, 0, w, h);
+    }
 
     private void updateLayoutChanges() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
@@ -575,17 +587,27 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
         }
     }
 
-    //region Configurable variables via xml or setter methods
-    private List<List<String>> data = null;
-    /**
-     * Used to draw cells on canvas and identify clicked position for #OnTableCellClickListener
-     */
-    private Rect[][] cellsRectangles = new Rect[][]{};
+    private int getWidthOfColumn(int key) {
+        if (isWrapWidthOfEachColumn) {
+            return maxWidthSparseIntArray.get(key, 0);
+        } else {
+            return maxWidthOfCell;
+        }
+    }
+
+    private int getHeightOfRow(int key) {
+        if (isWrapHeightOfEachRow) {
+            return maxHeightSparseIntArray.get(key, 0);
+        } else {
+            return maxHeightOfCell;
+        }
+    }
 
     //endregion Canvas Drawing
 
 
     //region Scrolling, Flinging and Click events
+
     private long startTime;
     private long endTime;
     private float totalAnimDx;
@@ -599,7 +621,7 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
      * This is used to stop fling animation if user touch view during fling animation
      */
     private boolean isFlinging = false;
-    private int NESTED_SCROLL_AXIS = ViewCompat.SCROLL_AXIS_NONE;
+    private final DecelerateInterpolator flingAnimInterpolator = new DecelerateInterpolator();
     private final GestureDetector.SimpleOnGestureListener simpleOnGestureListener = new GestureDetector.SimpleOnGestureListener() {
 
         public boolean onDown(MotionEvent e) {
@@ -748,28 +770,73 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
             return super.onDoubleTapEvent(e);
         }
     };
+    private final GestureDetector gestureDetector = new GestureDetector(getContext(), simpleOnGestureListener);
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
-    protected void onSizeChanged(int w, int h, int oldW, int oldH) {
-        super.onSizeChanged(w, h, oldW, oldH);
+    public boolean onTouchEvent(MotionEvent event) {
+        super.onTouchEvent(event);
 
-        visibleContentRect.set(0, 0, w, h);
+        switch (event.getActionMasked()) {
+
+            case MotionEvent.ACTION_DOWN:
+            case MotionEvent.ACTION_MOVE:
+                break;
+
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                isScrollingHorizontally = false;
+                isScrollingVertically = false;
+                break;
+        }
+
+        return gestureDetector.onTouchEvent(event);
+        //return true;
     }
 
-    private int getWidthOfColumn(int key) {
-        if (isWrapWidthOfEachColumn) {
-            return maxWidthSparseIntArray.get(key, 0);
-        } else {
-            return maxWidthOfCell;
-        }
-    }
+    /**
+     * This will start fling animation
+     *
+     * @return true if fling animation consumed
+     */
+    private boolean onFlingAnimateStep() {
 
-    private int getHeightOfRow(int key) {
-        if (isWrapHeightOfEachRow) {
-            return maxHeightSparseIntArray.get(key, 0);
-        } else {
-            return maxHeightOfCell;
+        boolean isScrolled = false;
+
+        long curTime = System.currentTimeMillis();
+        float percentTime = (float) (curTime - startTime) / (float) (endTime - startTime);
+        float percentDistance = flingAnimInterpolator.getInterpolation(percentTime);
+        float curDx = percentDistance * totalAnimDx;
+        float curDy = percentDistance * totalAnimDy;
+
+        float distanceX = curDx - lastAnimDx;
+        float distanceY = curDy - lastAnimDy;
+        lastAnimDx = curDx;
+        lastAnimDy = curDy;
+
+        if (is2DScrollingEnabled) {
+            isScrolled = scroll2D(-distanceX, -distanceY);
+        } else if (isScrollingHorizontally) {
+            isScrolled = scrollHorizontal(-distanceX);
+        } else if (isScrollingVertically) {
+            isScrolled = scrollVertical(-distanceY);
         }
+
+        // This will stop fling animation if user has touch intercepted
+        if (!isFlinging) {
+            return false;
+        }
+
+        if (percentTime < 1.0f) {
+            // fling animation running
+            post(this::onFlingAnimateStep);
+        } else {
+            // fling animation ended
+            isFlinging = false;
+            isScrollingVertically = false;
+            isScrollingHorizontally = false;
+        }
+        return isScrolled;
     }
 
     //endregion Scrolling, Flinging and Click events
@@ -946,72 +1013,8 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
 
     //region NestedScrollingChild implementation
 
-    @SuppressLint("ClickableViewAccessibility")
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        super.onTouchEvent(event);
-
-        switch (event.getActionMasked()) {
-
-            case MotionEvent.ACTION_DOWN:
-            case MotionEvent.ACTION_MOVE:
-                break;
-
-            case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_CANCEL:
-                isScrollingHorizontally = false;
-                isScrollingVertically = false;
-                break;
-        }
-
-        return gestureDetector.onTouchEvent(event);
-        //return true;
-    }
-
-    /**
-     * This will start fling animation
-     *
-     * @return true if fling animation consumed
-     */
-    private boolean onFlingAnimateStep() {
-
-        boolean isScrolled = false;
-
-        long curTime = System.currentTimeMillis();
-        float percentTime = (float) (curTime - startTime) / (float) (endTime - startTime);
-        float percentDistance = flingAnimInterpolator.getInterpolation(percentTime);
-        float curDx = percentDistance * totalAnimDx;
-        float curDy = percentDistance * totalAnimDy;
-
-        float distanceX = curDx - lastAnimDx;
-        float distanceY = curDy - lastAnimDy;
-        lastAnimDx = curDx;
-        lastAnimDy = curDy;
-
-        if (is2DScrollingEnabled) {
-            isScrolled = scroll2D(-distanceX, -distanceY);
-        } else if (isScrollingHorizontally) {
-            isScrolled = scrollHorizontal(-distanceX);
-        } else if (isScrollingVertically) {
-            isScrolled = scrollVertical(-distanceY);
-        }
-
-        // This will stop fling animation if user has touch intercepted
-        if (!isFlinging) {
-            return false;
-        }
-
-        if (percentTime < 1.0f) {
-            // fling animation running
-            post(this::onFlingAnimateStep);
-        } else {
-            // fling animation ended
-            isFlinging = false;
-            isScrollingVertically = false;
-            isScrollingHorizontally = false;
-        }
-        return isScrolled;
-    }
+    private final NestedScrollingChildHelper nestedScrollingChildHelper = new NestedScrollingChildHelper(this);
+    private int NESTED_SCROLL_AXIS = ViewCompat.SCROLL_AXIS_NONE;
 
     /**
      * default Nested scroll axis is ViewCompat.SCROLL_AXIS_NONE <br/>
