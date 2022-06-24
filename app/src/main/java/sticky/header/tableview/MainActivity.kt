@@ -30,26 +30,27 @@ class MainActivity : AppCompatActivity() {
         //stickyHeaderTableView.setNestedScrollAxis(ViewCompat.SCROLL_AXIS_VERTICAL)
     }
 
-    private fun getDummyData(): Array<Array<String?>> {
+    private fun getDummyData(): List<List<String>> {
         val row = 31
         val column = 31
 
-        val strings = Array(row) {
-            arrayOfNulls<String>(column)
-        }
+        val strings = ArrayList<ArrayList<String>>()
+        var innerStrings: ArrayList<String>
 
         for (i in -1 until row - 1) {
+            innerStrings = ArrayList()
             for (j in -1 until column - 1) {
                 if (i == -1 && j == -1) {
-                    strings[0][0] = "0,0"
+                    innerStrings.add("0,0")
                 } else if (i == -1) {
-                    strings[i + 1][j + 1] = "C " + (j + 1).toString()
+                    innerStrings.add("C " + (j + 1).toString())
                 } else if (j == -1) {
-                    strings[i + 1][j + 1] = "R " + (i + 1).toString()
+                    innerStrings.add("R " + (i + 1).toString())
                 } else {
-                    strings[i + 1][j + 1] = (i + 1).toString() + "," + (j + 1).toString()
+                    innerStrings.add((i + 1).toString() + "," + (j + 1).toString())
                 }
             }
+            strings.add(innerStrings)
         }
 
         strings[3][0] = "R 3 Big"

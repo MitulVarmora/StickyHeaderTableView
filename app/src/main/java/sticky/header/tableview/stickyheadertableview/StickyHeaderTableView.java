@@ -1,5 +1,6 @@
 package sticky.header.tableview.stickyheadertableview;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
@@ -18,6 +19,8 @@ import androidx.core.view.NestedScrollingChild;
 import androidx.core.view.NestedScrollingChildHelper;
 import androidx.core.view.ViewCompat;
 
+import java.util.List;
+
 import sticky.header.tableview.R;
 
 /**
@@ -25,39 +28,7 @@ import sticky.header.tableview.R;
  */
 public class StickyHeaderTableView extends View implements NestedScrollingChild {
 
-    //region Variables
     private final Paint paintStrokeRect = new Paint();
-    private final Paint paintHeaderCellFillRect = new Paint();
-    private final Paint paintContentCellFillRect = new Paint();
-    private final Paint paintLabelText = new Paint();
-    private final Paint paintHeaderText = new Paint();
-    private final Rect textRectBounds = new Rect();
-    /**
-     * Visible rect size of view which is displayed on screen
-     */
-    private final Rect visibleContentRect = new Rect(0, 0, 0, 0);
-    /**
-     * based on scrolling this rect value will update
-     */
-    private final Rect scrolledRect = new Rect(0, 0, 0, 0);
-    /**
-     * Actual rect size of canvas drawn content (Which may be larger or smaller than mobile screen)
-     */
-    private final Rect actualContentRect = new Rect(0, 0, 0, 0);
-
-    // below variables are used for fling animation (Not for scrolling)
-    private final DecelerateInterpolator animateInterpolator = new DecelerateInterpolator();
-    private final NestedScrollingChildHelper nestedScrollingChildHelper = new NestedScrollingChildHelper(this);
-    private int NESTED_SCROLL_AXIS = ViewCompat.SCROLL_AXIS_NONE;
-    private OnTableCellClickListener onTableCellClickListener = null;
-    private boolean isScrollingHorizontally = false;
-    private boolean isScrollingVertically = false;
-    /**
-     * This is used to stop fling animation if user touch view during fling animation
-     */
-    private boolean isFlinging = false;
-
-    //region Configurable variables via xml or setter methods
     private boolean isDisplayLeftHeadersVertically = false;
     private boolean is2DScrollingEnabled;
     private boolean isWrapHeightOfEachRow = false;
@@ -71,21 +42,193 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
     private int headerCellFillColor;
     private int contentCellFillColor;
     private int cellPadding;
-    //endregion
+    //endregion Configurable variables via xml or setter methods
 
+    //region Variables for drawing
+    private final Paint paintHeaderCellFillRect = new Paint();
+    private final Paint paintContentCellFillRect = new Paint();
+    private final Paint paintLabelText = new Paint();
+    private final Paint paintHeaderText = new Paint();
+    private final Rect textRectBounds = new Rect();
     /**
-     * Used to identify clicked position for #OnTableCellClickListener
+     * Visible rect size of view which is displayed on screen
      */
-    private Rect[][] rectEachCellBoundData = new Rect[][]{};
-    private String[][] data = null;
+    private final Rect visibleContentRect = new Rect(0, 0, 0, 0);
+    /**
+     * based on scrolling this rect value will update
+     */
+    private final Rect scrolledRect = new Rect(0, 0, 0, 0);
     private int maxWidthOfCell = 0;
     private int maxHeightOfCell = 0;
     private SparseIntArray maxHeightSparseIntArray = new SparseIntArray();
     private SparseIntArray maxWidthSparseIntArray = new SparseIntArray();
 
+    //endregion Variables for drawing
+
+    //region Variables for boundary of the View
     /**
-     * Used for scroll events
+     * Actual rect size of canvas drawn content (Which may be larger or smaller than mobile screen)
      */
+    private final Rect actualContentRect = new Rect(0, 0, 0, 0);
+    private final DecelerateInterpolator flingAnimInterpolator = new DecelerateInterpolator();
+    private final GestureDetector gestureDetector = new GestureDetector(getContext(), simpleOnGestureListener);
+
+    //endregion Variables for boundary of the View
+
+
+    //region Constructor and setup methods
+
+    public StickyHeaderTableView(Context context) {
+        this(context, null, 0);
+    }
+
+    public StickyHeaderTableView(Context context, AttributeSet attrs) {
+        this(context, attrs, 0);
+    }
+
+    public StickyHeaderTableView(Context context, AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
+
+        final DisplayMatrixHelper displayMatrixHelper = new DisplayMatrixHelper();
+
+        final int defaultTextSize = (int) displayMatrixHelper.dpToPixels(getContext(), 14);
+
+        TypedArray a = context.getTheme().obtainStyledAttributes(
+                attrs, R.styleable.StickyHeaderTableView, defStyleAttr, defStyleAttr);
+
+        if (a != null) {
+            try {
+                textLabelColor = a.getColor(
+                        R.styleable.StickyHeaderTableView_shtv_textLabelColor, Color.BLACK);
+                textHeaderColor = a.getColor(
+                        R.styleable.StickyHeaderTableView_shtv_textHeaderColor, Color.BLACK);
+                dividerColor = a.getColor(
+                        R.styleable.StickyHeaderTableView_shtv_dividerColor, Color.BLACK);
+
+                textLabelSize = a.getDimensionPixelSize(
+                        R.styleable.StickyHeaderTableView_shtv_textLabelSize, defaultTextSize);
+                textHeaderSize = a.getDimensionPixelSize(
+                        R.styleable.StickyHeaderTableView_shtv_textHeaderSize, defaultTextSize);
+                dividerThickness = a.getDimensionPixelSize(R.styleable.StickyHeaderTableView_shtv_dividerThickness, 0);
+                cellPadding = a.getDimensionPixelSize(R.styleable.StickyHeaderTableView_shtv_cellPadding, 0);
+
+                is2DScrollingEnabled = a.getBoolean(R.styleable.StickyHeaderTableView_shtv_is2DScrollEnabled, false);
+                isDisplayLeftHeadersVertically = a.getBoolean(R.styleable.StickyHeaderTableView_shtv_isDisplayLeftHeadersVertically, false);
+                isWrapHeightOfEachRow = a.getBoolean(R.styleable.StickyHeaderTableView_shtv_isWrapHeightOfEachRow, false);
+                isWrapWidthOfEachColumn = a.getBoolean(R.styleable.StickyHeaderTableView_shtv_isWrapWidthOfEachColumn, false);
+
+                headerCellFillColor = a.getColor(
+                        R.styleable.StickyHeaderTableView_shtv_headerCellFillColor, Color.TRANSPARENT);
+
+                contentCellFillColor = a.getColor(
+                        R.styleable.StickyHeaderTableView_shtv_contentCellFillColor, Color.TRANSPARENT);
+
+            } catch (Exception e) {
+                setupDefaultVariableValue(defaultTextSize);
+            } finally {
+                a.recycle();
+            }
+        } else {
+            setupDefaultVariableValue(defaultTextSize);
+        }
+
+        setupPaint();
+    }
+
+    private void setupDefaultVariableValue(int defaultTextSize) {
+        textLabelColor = Color.BLACK;
+        textHeaderColor = Color.BLACK;
+        dividerColor = Color.BLACK;
+        textLabelSize = defaultTextSize;
+        textHeaderSize = defaultTextSize;
+        dividerThickness = 0;
+        cellPadding = 0;
+        is2DScrollingEnabled = false;
+        headerCellFillColor = Color.TRANSPARENT;
+        contentCellFillColor = Color.TRANSPARENT;
+    }
+
+    private void setupPaint() {
+        paintStrokeRect.setStyle(Paint.Style.STROKE);
+        paintStrokeRect.setColor(dividerColor);
+        paintStrokeRect.setStrokeWidth(dividerThickness);
+
+        paintHeaderCellFillRect.setStyle(Paint.Style.FILL);
+        paintHeaderCellFillRect.setColor(headerCellFillColor);
+
+        paintContentCellFillRect.setStyle(Paint.Style.FILL);
+        paintContentCellFillRect.setColor(contentCellFillColor);
+
+        paintLabelText.setStyle(Paint.Style.FILL);
+        paintLabelText.setColor(textLabelColor);
+        paintLabelText.setTextSize(textLabelSize);
+        paintLabelText.setTextAlign(Paint.Align.LEFT);
+
+        paintHeaderText.setStyle(Paint.Style.FILL);
+        paintHeaderText.setColor(textHeaderColor);
+        paintHeaderText.setTextSize(textHeaderSize);
+        paintHeaderText.setTextAlign(Paint.Align.LEFT);
+    }
+
+    //endregion Constructor and setup methods
+
+
+    //region Measure/Update the view
+    private final NestedScrollingChildHelper nestedScrollingChildHelper = new NestedScrollingChildHelper(this);
+    //region Configurable variables via xml or setter methods
+    private List<List<String>> data = null;
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldW, int oldH) {
+        super.onSizeChanged(w, h, oldW, oldH);
+
+        visibleContentRect.set(0, 0, w, h);
+    }
+
+    /**
+     * Used to draw cells on canvas and identify clicked position for #OnTableCellClickListener
+     */
+    private Rect[][] cellsRectangles = new Rect[][]{};
+
+    //endregion Measure/Update the view
+
+
+    //region Canvas Drawing
+    private long startTime;
+    private long endTime;
+
+    private int getWidthOfColumn(int key) {
+        if (isWrapWidthOfEachColumn) {
+            return maxWidthSparseIntArray.get(key, 0);
+        } else {
+            return maxWidthOfCell;
+        }
+    }
+
+    private int getHeightOfRow(int key) {
+        if (isWrapHeightOfEachRow) {
+            return maxHeightSparseIntArray.get(key, 0);
+        } else {
+            return maxHeightOfCell;
+        }
+    }
+
+    //endregion Canvas Drawing
+
+
+    //region Scrolling, Flinging and Click events
+    private float totalAnimDx;
+    private float totalAnimDy;
+    private float lastAnimDx;
+    private float lastAnimDy;
+    private boolean isScrollingHorizontally = false;
+    private boolean isScrollingVertically = false;
+    private OnTableCellClickListener onTableCellClickListener = null;
+    /**
+     * This is used to stop fling animation if user touch view during fling animation
+     */
+    private boolean isFlinging = false;
+    private int NESTED_SCROLL_AXIS = ViewCompat.SCROLL_AXIS_NONE;
     private final GestureDetector.SimpleOnGestureListener simpleOnGestureListener = new GestureDetector.SimpleOnGestureListener() {
 
         public boolean onDown(MotionEvent e) {
@@ -204,13 +347,13 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
 
                 boolean isEndLoop = false;
 
-                for (int i = 0; i < rectEachCellBoundData.length; i++) {
+                for (int i = 0; i < cellsRectangles.length; i++) {
 
-                    if (rectEachCellBoundData[i][0].top <= y && rectEachCellBoundData[i][0].bottom >= y) {
+                    if (cellsRectangles[i][0].top <= y && cellsRectangles[i][0].bottom >= y) {
 
-                        for (int j = 0; j < rectEachCellBoundData[0].length; j++) {
+                        for (int j = 0; j < cellsRectangles[0].length; j++) {
 
-                            if (rectEachCellBoundData[i][j].left <= x && rectEachCellBoundData[i][j].right >= x) {
+                            if (cellsRectangles[i][j].left <= x && cellsRectangles[i][j].right >= x) {
                                 isEndLoop = true;
                                 onTableCellClickListener.onTableCellClicked(i, j);
                                 break;
@@ -234,155 +377,6 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
             return super.onDoubleTapEvent(e);
         }
     };
-    private final GestureDetector gestureDetector = new GestureDetector(getContext(), simpleOnGestureListener);
-    private long startTime;
-    private long endTime;
-    private float totalAnimDx;
-    private float totalAnimDy;
-    private float lastAnimDx;
-    private float lastAnimDy;
-    //endregion Variables
-
-    //region Constructor and setup methods
-
-    public StickyHeaderTableView(Context context) {
-        this(context, null, 0);
-    }
-
-    public StickyHeaderTableView(Context context, AttributeSet attrs) {
-        this(context, attrs, 0);
-    }
-
-    public StickyHeaderTableView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-
-        final DisplayMatrixHelper displayMatrixHelper = new DisplayMatrixHelper();
-
-        final int defaultTextSize = (int) displayMatrixHelper.dpToPixels(getContext(), 14);
-
-        TypedArray a = context.getTheme().obtainStyledAttributes(
-                attrs, R.styleable.StickyHeaderTableView, defStyleAttr, defStyleAttr);
-
-        if (a != null) {
-            try {
-                textLabelColor = a.getColor(
-                        R.styleable.StickyHeaderTableView_shtv_textLabelColor, Color.BLACK);
-                textHeaderColor = a.getColor(
-                        R.styleable.StickyHeaderTableView_shtv_textHeaderColor, Color.BLACK);
-                dividerColor = a.getColor(
-                        R.styleable.StickyHeaderTableView_shtv_dividerColor, Color.BLACK);
-
-                textLabelSize = a.getDimensionPixelSize(
-                        R.styleable.StickyHeaderTableView_shtv_textLabelSize, defaultTextSize);
-                textHeaderSize = a.getDimensionPixelSize(
-                        R.styleable.StickyHeaderTableView_shtv_textHeaderSize, defaultTextSize);
-                dividerThickness = a.getDimensionPixelSize(R.styleable.StickyHeaderTableView_shtv_dividerThickness, 0);
-                cellPadding = a.getDimensionPixelSize(R.styleable.StickyHeaderTableView_shtv_cellPadding, 0);
-
-                is2DScrollingEnabled = a.getBoolean(R.styleable.StickyHeaderTableView_shtv_is2DScrollEnabled, false);
-                isDisplayLeftHeadersVertically = a.getBoolean(R.styleable.StickyHeaderTableView_shtv_isDisplayLeftHeadersVertically, false);
-                isWrapHeightOfEachRow = a.getBoolean(R.styleable.StickyHeaderTableView_shtv_isWrapHeightOfEachRow, false);
-                isWrapWidthOfEachColumn = a.getBoolean(R.styleable.StickyHeaderTableView_shtv_isWrapWidthOfEachColumn, false);
-
-                headerCellFillColor = a.getColor(
-                        R.styleable.StickyHeaderTableView_shtv_headerCellFillColor, Color.TRANSPARENT);
-
-                contentCellFillColor = a.getColor(
-                        R.styleable.StickyHeaderTableView_shtv_contentCellFillColor, Color.TRANSPARENT);
-
-            } catch (Exception e) {
-                setupDefaultVariableValue(defaultTextSize);
-            } finally {
-                a.recycle();
-            }
-        } else {
-            setupDefaultVariableValue(defaultTextSize);
-        }
-
-        setupPaint();
-    }
-
-    private void setupDefaultVariableValue(int defaultTextSize) {
-        textLabelColor = Color.BLACK;
-        textHeaderColor = Color.BLACK;
-        dividerColor = Color.BLACK;
-        textLabelSize = defaultTextSize;
-        textHeaderSize = defaultTextSize;
-        dividerThickness = 0;
-        cellPadding = 0;
-        is2DScrollingEnabled = false;
-        headerCellFillColor = Color.TRANSPARENT;
-        contentCellFillColor = Color.TRANSPARENT;
-    }
-
-    private void setupPaint() {
-        paintStrokeRect.setStyle(Paint.Style.STROKE);
-        paintStrokeRect.setColor(dividerColor);
-        paintStrokeRect.setStrokeWidth(dividerThickness);
-
-        paintHeaderCellFillRect.setStyle(Paint.Style.FILL);
-        paintHeaderCellFillRect.setColor(headerCellFillColor);
-
-        paintContentCellFillRect.setStyle(Paint.Style.FILL);
-        paintContentCellFillRect.setColor(contentCellFillColor);
-
-        paintLabelText.setStyle(Paint.Style.FILL);
-        paintLabelText.setColor(textLabelColor);
-        paintLabelText.setTextSize(textLabelSize);
-        paintLabelText.setTextAlign(Paint.Align.LEFT);
-
-        paintHeaderText.setStyle(Paint.Style.FILL);
-        paintHeaderText.setColor(textHeaderColor);
-        paintHeaderText.setTextSize(textHeaderSize);
-        paintHeaderText.setTextAlign(Paint.Align.LEFT);
-    }
-
-    //endregion Constructor and setup methods
-
-    /**
-     * This will start fling animation
-     *
-     * @return true if fling animation consumed
-     */
-    private boolean onFlingAnimateStep() {
-
-        boolean isScrolled = false;
-
-        long curTime = System.currentTimeMillis();
-        float percentTime = (float) (curTime - startTime) / (float) (endTime - startTime);
-        float percentDistance = animateInterpolator.getInterpolation(percentTime);
-        float curDx = percentDistance * totalAnimDx;
-        float curDy = percentDistance * totalAnimDy;
-
-        float distanceX = curDx - lastAnimDx;
-        float distanceY = curDy - lastAnimDy;
-        lastAnimDx = curDx;
-        lastAnimDy = curDy;
-
-        if (is2DScrollingEnabled) {
-            isScrolled = scroll2D(-distanceX, -distanceY);
-        } else if (isScrollingHorizontally) {
-            isScrolled = scrollHorizontal(-distanceX);
-        } else if (isScrollingVertically) {
-            isScrolled = scrollVertical(-distanceY);
-        }
-
-        // This will stop fling animation if user has touch intercepted
-        if (!isFlinging) {
-            return false;
-        }
-
-        if (percentTime < 1.0f) {
-            // fling animation running
-            post(this::onFlingAnimateStep);
-        } else {
-            // fling animation ended
-            isFlinging = false;
-            isScrollingVertically = false;
-            isScrollingHorizontally = false;
-        }
-        return isScrolled;
-    }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
@@ -400,7 +394,7 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
                 }
                 desiredHeight = desiredHeight + (dividerThickness / 2);
             } else {
-                desiredHeight = maxHeightOfCell * data.length + (dividerThickness / 2);
+                desiredHeight = maxHeightOfCell * data.size() + (dividerThickness / 2);
             }
 
             if (isWrapWidthOfEachColumn) {
@@ -411,7 +405,7 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
                 desiredWidth = desiredWidth + (dividerThickness / 2);
 
             } else {
-                desiredWidth = maxWidthOfCell * data[0].length + (dividerThickness / 2);
+                desiredWidth = maxWidthOfCell * data.get(0).size() + (dividerThickness / 2);
             }
 
             scrolledRect.set(0, 0, desiredWidth, desiredHeight);
@@ -467,14 +461,13 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
 
         final int doubleCellPadding = cellPadding + cellPadding;
 
-        for (int i = 0; i < data.length; i++) {
+        for (int i = 0; i < data.size(); i++) {
 
-            for (int j = 0; j < data[0].length; j++) {
+            for (int j = 0; j < data.get(0).size(); j++) {
 
                 if (i == 0 && j == 0) {
-//                    data[0][0] = "xx";
 
-                    paintHeaderText.getTextBounds(data[i][j], 0, data[i][j].length(), textRectBounds);
+                    paintHeaderText.getTextBounds(data.get(i).get(j), 0, data.get(i).get(j).length(), textRectBounds);
                     if (maxWidthOfCell < textRectBounds.width()) {
                         maxWidthOfCell = textRectBounds.width();
                     }
@@ -490,7 +483,7 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
                     }
                 } else if (i == 0) {
                     // Top headers cells
-                    paintHeaderText.getTextBounds(data[i][j], 0, data[i][j].length(), textRectBounds);
+                    paintHeaderText.getTextBounds(data.get(i).get(j), 0, data.get(i).get(j).length(), textRectBounds);
                     if (maxWidthOfCell < textRectBounds.width()) {
                         maxWidthOfCell = textRectBounds.width();
                     }
@@ -507,7 +500,7 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
 
                 } else if (j == 0) {
                     // Left headers cells
-                    paintHeaderText.getTextBounds(data[i][j], 0, data[i][j].length(), textRectBounds);
+                    paintHeaderText.getTextBounds(data.get(i).get(j), 0, data.get(i).get(j).length(), textRectBounds);
 
                     if (isDisplayLeftHeadersVertically) {
 
@@ -543,7 +536,7 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
                     }
                 } else {
                     // Other content cells
-                    paintLabelText.getTextBounds(data[i][j], 0, data[i][j].length(), textRectBounds);
+                    paintLabelText.getTextBounds(data.get(i).get(j), 0, data.get(i).get(j).length(), textRectBounds);
                     if (maxWidthOfCell < textRectBounds.width()) {
                         maxWidthOfCell = textRectBounds.width();
                     }
@@ -572,11 +565,16 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
         }
     }
 
-    @Override
-    protected void onSizeChanged(int w, int h, int oldW, int oldH) {
-        super.onSizeChanged(w, h, oldW, oldH);
-
-        visibleContentRect.set(0, 0, w, h);
+    private void updateLayoutChanges() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+            if (!isInLayout()) {
+                requestLayout();
+            } else {
+                invalidate();
+            }
+        } else {
+            requestLayout();
+        }
     }
 
     @Override
@@ -586,6 +584,7 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
             return;
         }
 
+        //region Variables
         int cellLeftX;
         int cellTopY = scrolledRect.top;
         int cellRightX;
@@ -595,32 +594,34 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
         float drawTextX;
         float drawTextY;
         String textToDraw;
+        //endregion Variables
 
-        // *************************** Calculate each cells to draw **************************
+        //region Update each cell rectangle as per scrolledRect
+
         // This is top-left most cell (0,0)
-        updateRectPointData(0, 0, halfDividerThickness, halfDividerThickness, getWidthOfColumn(0), getHeightOfRow(0));
+        updateCellRectangle(0, 0, halfDividerThickness, halfDividerThickness, getWidthOfColumn(0), getHeightOfRow(0));
 
-        for (int i = 0; i < data.length; i++) {
+        for (int i = 0; i < data.size(); i++) {
             cellRightX = scrolledRect.left;
             int heightOfRowI = getHeightOfRow(i);
             if (i == 0) {
                 cellTopY = halfDividerThickness;
-                for (int j = 0; j < data[i].length; j++) {
+                for (int j = 0; j < data.get(i).size(); j++) {
                     cellLeftX = cellRightX - halfDividerThickness;
                     cellRightX += getWidthOfColumn(j);
                     if (j != 0) {
                         // This are top header cells (0,*)
-                        updateRectPointData(i, j, cellLeftX, cellTopY, cellRightX, heightOfRowI);
+                        updateCellRectangle(i, j, cellLeftX, cellTopY, cellRightX, heightOfRowI);
                     }
                 }
                 cellBottomY = scrolledRect.top + getHeightOfRow(i);
             } else {
                 // These are content cells
-                for (int j = 0; j < data[0].length; j++) {
+                for (int j = 0; j < data.get(0).size(); j++) {
                     cellLeftX = cellRightX - halfDividerThickness;
                     cellRightX += getWidthOfColumn(j);
                     if (j != 0) {
-                        updateRectPointData(i, j, cellLeftX, cellTopY, cellRightX, cellBottomY);
+                        updateCellRectangle(i, j, cellLeftX, cellTopY, cellRightX, cellBottomY);
                     }
                 }
 
@@ -628,129 +629,125 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
                 cellRightX = 0;
                 cellLeftX = cellRightX + halfDividerThickness;
                 cellRightX += getWidthOfColumn(0);
-                updateRectPointData(i, 0, cellLeftX, cellTopY, cellRightX, cellBottomY);
+                updateCellRectangle(i, 0, cellLeftX, cellTopY, cellRightX, cellBottomY);
             }
             cellTopY = cellBottomY - halfDividerThickness;
             cellBottomY = cellBottomY + getHeightOfRow(i + 1);
         }
 
-        // ******************** Draw contents & left headers ********************
+        //endregion Update each cell rectangle as per scrolledRect
+
+        //region Draw contents & left headers
+
         boolean isLeftVisible;
         boolean isTopVisible;
         boolean isRightVisible;
         boolean isBottomVisible;
 
-        for (int i = 1; i < data.length; i++) {
-            isTopVisible = rectEachCellBoundData[i][0].top >= rectEachCellBoundData[0][0].bottom
-                    && rectEachCellBoundData[i][0].top <= visibleContentRect.bottom;
-            isBottomVisible = rectEachCellBoundData[i][0].bottom >= rectEachCellBoundData[0][0].bottom
-                    && rectEachCellBoundData[i][0].bottom <= visibleContentRect.bottom;
+        for (int i = 1; i < data.size(); i++) {
+            isTopVisible = cellsRectangles[i][0].top >= cellsRectangles[0][0].bottom
+                    && cellsRectangles[i][0].top <= visibleContentRect.bottom;
+            isBottomVisible = cellsRectangles[i][0].bottom >= cellsRectangles[0][0].bottom
+                    && cellsRectangles[i][0].bottom <= visibleContentRect.bottom;
 
             if (isTopVisible || isBottomVisible) {
 
-                // ******************** Draw contents ********************
-                for (int j = 1; j < data[i].length; j++) {
-                    isLeftVisible = rectEachCellBoundData[i][j].left >= rectEachCellBoundData[i][0].right
-                            && rectEachCellBoundData[i][j].left <= visibleContentRect.right;
-                    isRightVisible = rectEachCellBoundData[i][j].right >= rectEachCellBoundData[i][0].right
-                            && rectEachCellBoundData[i][j].right <= visibleContentRect.right;
+                // Draw contents
+                for (int j = 1; j < data.get(i).size(); j++) {
+                    isLeftVisible = cellsRectangles[i][j].left >= cellsRectangles[i][0].right
+                            && cellsRectangles[i][j].left <= visibleContentRect.right;
+                    isRightVisible = cellsRectangles[i][j].right >= cellsRectangles[i][0].right
+                            && cellsRectangles[i][j].right <= visibleContentRect.right;
 
                     if (isLeftVisible || isRightVisible) {
-                        canvas.drawRect(rectEachCellBoundData[i][j].left, rectEachCellBoundData[i][j].top, rectEachCellBoundData[i][j].right, rectEachCellBoundData[i][j].bottom, paintContentCellFillRect);
+                        canvas.drawRect(cellsRectangles[i][j].left, cellsRectangles[i][j].top, cellsRectangles[i][j].right, cellsRectangles[i][j].bottom, paintContentCellFillRect);
                         if (dividerThickness != 0) {
-                            canvas.drawRect(rectEachCellBoundData[i][j].left, rectEachCellBoundData[i][j].top, rectEachCellBoundData[i][j].right, rectEachCellBoundData[i][j].bottom, paintStrokeRect);
+                            canvas.drawRect(cellsRectangles[i][j].left, cellsRectangles[i][j].top, cellsRectangles[i][j].right, cellsRectangles[i][j].bottom, paintStrokeRect);
                         }
 
-                        textToDraw = data[i][j];
+                        textToDraw = data.get(i).get(j);
                         paintLabelText.getTextBounds(textToDraw, 0, textToDraw.length(), textRectBounds);
 
-                        drawTextX = rectEachCellBoundData[i][j].right - (getWidthOfColumn(j) / 2f) - (textRectBounds.width() / 2f);
-                        drawTextY = rectEachCellBoundData[i][j].bottom - (getHeightOfRow(i) / 2f) + (textRectBounds.height() / 2f);
+                        drawTextX = cellsRectangles[i][j].right - (getWidthOfColumn(j) / 2f) - (textRectBounds.width() / 2f);
+                        drawTextY = cellsRectangles[i][j].bottom - (getHeightOfRow(i) / 2f) + (textRectBounds.height() / 2f);
 
                         canvas.drawText(textToDraw, 0, textToDraw.length(), drawTextX, drawTextY, paintLabelText);
                     }
                 }
 
-                // ******************** Draw left header (*,0) ********************
-                canvas.drawRect(rectEachCellBoundData[i][0].left, rectEachCellBoundData[i][0].top, rectEachCellBoundData[i][0].right, rectEachCellBoundData[i][0].bottom, paintHeaderCellFillRect);
+                // Draw left header (*,0)
+                canvas.drawRect(cellsRectangles[i][0].left, cellsRectangles[i][0].top, cellsRectangles[i][0].right, cellsRectangles[i][0].bottom, paintHeaderCellFillRect);
                 if (dividerThickness != 0) {
-                    canvas.drawRect(rectEachCellBoundData[i][0].left, rectEachCellBoundData[i][0].top, rectEachCellBoundData[i][0].right, rectEachCellBoundData[i][0].bottom, paintStrokeRect);
+                    canvas.drawRect(cellsRectangles[i][0].left, cellsRectangles[i][0].top, cellsRectangles[i][0].right, cellsRectangles[i][0].bottom, paintStrokeRect);
                 }
 
-                textToDraw = data[i][0];
+                textToDraw = data.get(i).get(0);
                 paintHeaderText.getTextBounds(textToDraw, 0, textToDraw.length(), textRectBounds);
 
                 if (isDisplayLeftHeadersVertically) {
-                    drawTextX = rectEachCellBoundData[i][0].right - (getWidthOfColumn(0) / 2f) + (textRectBounds.height() / 2f);
-                    drawTextY = rectEachCellBoundData[i][0].bottom - (getHeightOfRow(i) / 2f) + (textRectBounds.width() / 2f);
+                    drawTextX = cellsRectangles[i][0].right - (getWidthOfColumn(0) / 2f) + (textRectBounds.height() / 2f);
+                    drawTextY = cellsRectangles[i][0].bottom - (getHeightOfRow(i) / 2f) + (textRectBounds.width() / 2f);
                     canvas.save();
                     canvas.rotate(-90, drawTextX, drawTextY);
                     canvas.drawText(textToDraw, 0, textToDraw.length(), drawTextX, drawTextY, paintHeaderText);
                     canvas.restore();
                 } else {
-                    drawTextX = rectEachCellBoundData[i][0].right - (getWidthOfColumn(0) / 2f) - (textRectBounds.width() / 2f);
-                    drawTextY = rectEachCellBoundData[i][0].bottom - (getHeightOfRow(i) / 2f) + (textRectBounds.height() / 2f);
+                    drawTextX = cellsRectangles[i][0].right - (getWidthOfColumn(0) / 2f) - (textRectBounds.width() / 2f);
+                    drawTextY = cellsRectangles[i][0].bottom - (getHeightOfRow(i) / 2f) + (textRectBounds.height() / 2f);
                     canvas.drawText(textToDraw, 0, textToDraw.length(), drawTextX, drawTextY, paintHeaderText);
                 }
             }
         }
 
-        // ******************** Draw top headers (0,*) ********************
-        for (int j = 1; j < data[0].length; j++) {
-            isLeftVisible = rectEachCellBoundData[0][j].left >= rectEachCellBoundData[0][0].right
-                    && rectEachCellBoundData[0][j].left <= visibleContentRect.right;
-            isRightVisible = rectEachCellBoundData[0][j].right >= rectEachCellBoundData[0][0].right
-                    && rectEachCellBoundData[0][j].right <= visibleContentRect.right;
+        //endregion Draw contents & left headers
+
+        //region Draw top headers (0,*)
+
+        for (int j = 1; j < data.get(0).size(); j++) {
+            isLeftVisible = cellsRectangles[0][j].left >= cellsRectangles[0][0].right
+                    && cellsRectangles[0][j].left <= visibleContentRect.right;
+            isRightVisible = cellsRectangles[0][j].right >= cellsRectangles[0][0].right
+                    && cellsRectangles[0][j].right <= visibleContentRect.right;
 
             if (isLeftVisible || isRightVisible) {
-                canvas.drawRect(rectEachCellBoundData[0][j].left, rectEachCellBoundData[0][j].top, rectEachCellBoundData[0][j].right, rectEachCellBoundData[0][j].bottom, paintHeaderCellFillRect);
+                canvas.drawRect(cellsRectangles[0][j].left, cellsRectangles[0][j].top, cellsRectangles[0][j].right, cellsRectangles[0][j].bottom, paintHeaderCellFillRect);
                 if (dividerThickness != 0) {
-                    canvas.drawRect(rectEachCellBoundData[0][j].left, rectEachCellBoundData[0][j].top, rectEachCellBoundData[0][j].right, rectEachCellBoundData[0][j].bottom, paintStrokeRect);
+                    canvas.drawRect(cellsRectangles[0][j].left, cellsRectangles[0][j].top, cellsRectangles[0][j].right, cellsRectangles[0][j].bottom, paintStrokeRect);
                 }
-                textToDraw = data[0][j];
+                textToDraw = data.get(0).get(j);
                 paintHeaderText.getTextBounds(textToDraw, 0, textToDraw.length(), textRectBounds);
 
-                drawTextX = rectEachCellBoundData[0][j].right - (getWidthOfColumn(j) / 2f) - (textRectBounds.width() / 2f);
-                drawTextY = rectEachCellBoundData[0][j].bottom - (getHeightOfRow(0) / 2f) + (textRectBounds.height() / 2f);
+                drawTextX = cellsRectangles[0][j].right - (getWidthOfColumn(j) / 2f) - (textRectBounds.width() / 2f);
+                drawTextY = cellsRectangles[0][j].bottom - (getHeightOfRow(0) / 2f) + (textRectBounds.height() / 2f);
 
                 canvas.drawText(textToDraw, 0, textToDraw.length(), drawTextX, drawTextY, paintHeaderText);
             }
         }
 
-        // ******************** Draw top-left most cell (0,0) ********************
-        canvas.drawRect(rectEachCellBoundData[0][0].left, rectEachCellBoundData[0][0].top, rectEachCellBoundData[0][0].right, rectEachCellBoundData[0][0].bottom, paintHeaderCellFillRect);
+        //endregion Draw top headers (0,*)
+
+        //region Draw top-left most cell (0,0)
+
+        canvas.drawRect(cellsRectangles[0][0].left, cellsRectangles[0][0].top, cellsRectangles[0][0].right, cellsRectangles[0][0].bottom, paintHeaderCellFillRect);
 
         if (dividerThickness != 0) {
-            canvas.drawRect(rectEachCellBoundData[0][0].left, rectEachCellBoundData[0][0].top, rectEachCellBoundData[0][0].right, rectEachCellBoundData[0][0].bottom, paintStrokeRect);
+            canvas.drawRect(cellsRectangles[0][0].left, cellsRectangles[0][0].top, cellsRectangles[0][0].right, cellsRectangles[0][0].bottom, paintStrokeRect);
         }
 
-        textToDraw = data[0][0];
+        textToDraw = data.get(0).get(0);
         paintHeaderText.getTextBounds(textToDraw, 0, textToDraw.length(), textRectBounds);
 
         drawTextX = getWidthOfColumn(0) - (getWidthOfColumn(0) / 2f) - (textRectBounds.width() / 2f);
         drawTextY = getHeightOfRow(0) - (getHeightOfRow(0) / 2f) + (textRectBounds.height() / 2f);
         canvas.drawText(textToDraw, 0, textToDraw.length(), drawTextX, drawTextY, paintHeaderText);
 
-        // ******************** Draw whole view border same as cell border ********************
+        //endregion Draw top-left most cell (0,0)
+
+        //region Draw whole view border
         if (dividerThickness != 0) {
             canvas.drawRect(visibleContentRect.left, visibleContentRect.top, visibleContentRect.right - halfDividerThickness, visibleContentRect.bottom - halfDividerThickness, paintStrokeRect);
         }
-    }
-
-    private int getWidthOfColumn(int key) {
-        if (isWrapWidthOfEachColumn) {
-            return maxWidthSparseIntArray.get(key, 0);
-        } else {
-            return maxWidthOfCell;
-        }
-    }
-
-    private int getHeightOfRow(int key) {
-        if (isWrapHeightOfEachRow) {
-            return maxHeightSparseIntArray.get(key, 0);
-        } else {
-            return maxHeightOfCell;
-        }
+        //endregion Draw whole view border
     }
 
     /**
@@ -763,49 +760,18 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
      * @param cellRightX  rightX
      * @param cellBottomY bottomY
      */
-    private void updateRectPointData(int i, int j, int cellLeftX, int cellTopY, int cellRightX, int cellBottomY) {
-        if (rectEachCellBoundData[i][j] == null) {
-            rectEachCellBoundData[i][j] = new Rect(cellLeftX, cellTopY, cellRightX, cellBottomY);
+    private void updateCellRectangle(int i, int j, int cellLeftX, int cellTopY, int cellRightX, int cellBottomY) {
+        if (cellsRectangles[i][j] == null) {
+            cellsRectangles[i][j] = new Rect(cellLeftX, cellTopY, cellRightX, cellBottomY);
         } else {
-            rectEachCellBoundData[i][j].left = cellLeftX;
-            rectEachCellBoundData[i][j].top = cellTopY;
-            rectEachCellBoundData[i][j].right = cellRightX;
-            rectEachCellBoundData[i][j].bottom = cellBottomY;
+            cellsRectangles[i][j].left = cellLeftX;
+            cellsRectangles[i][j].top = cellTopY;
+            cellsRectangles[i][j].right = cellRightX;
+            cellsRectangles[i][j].bottom = cellBottomY;
         }
     }
 
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        super.onTouchEvent(event);
-
-        switch (event.getActionMasked()) {
-
-            case MotionEvent.ACTION_DOWN:
-            case MotionEvent.ACTION_MOVE:
-                break;
-
-            case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_CANCEL:
-                isScrollingHorizontally = false;
-                isScrollingVertically = false;
-                break;
-        }
-
-        return gestureDetector.onTouchEvent(event);
-        //return true;
-    }
-
-    private void updateLayoutChanges() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-            if (!isInLayout()) {
-                requestLayout();
-            } else {
-                invalidate();
-            }
-        } else {
-            requestLayout();
-        }
-    }
+    //endregion Scrolling, Flinging and Click events
 
 
     //region Scrolling methods
@@ -977,7 +943,74 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
     //endregion Scrolling methods
 
 
-    //region NestedScrollingChild methods
+    //region NestedScrollingChild implementation
+
+    @SuppressLint("ClickableViewAccessibility")
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        super.onTouchEvent(event);
+
+        switch (event.getActionMasked()) {
+
+            case MotionEvent.ACTION_DOWN:
+            case MotionEvent.ACTION_MOVE:
+                break;
+
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                isScrollingHorizontally = false;
+                isScrollingVertically = false;
+                break;
+        }
+
+        return gestureDetector.onTouchEvent(event);
+        //return true;
+    }
+
+    /**
+     * This will start fling animation
+     *
+     * @return true if fling animation consumed
+     */
+    private boolean onFlingAnimateStep() {
+
+        boolean isScrolled = false;
+
+        long curTime = System.currentTimeMillis();
+        float percentTime = (float) (curTime - startTime) / (float) (endTime - startTime);
+        float percentDistance = flingAnimInterpolator.getInterpolation(percentTime);
+        float curDx = percentDistance * totalAnimDx;
+        float curDy = percentDistance * totalAnimDy;
+
+        float distanceX = curDx - lastAnimDx;
+        float distanceY = curDy - lastAnimDy;
+        lastAnimDx = curDx;
+        lastAnimDy = curDy;
+
+        if (is2DScrollingEnabled) {
+            isScrolled = scroll2D(-distanceX, -distanceY);
+        } else if (isScrollingHorizontally) {
+            isScrolled = scrollHorizontal(-distanceX);
+        } else if (isScrollingVertically) {
+            isScrolled = scrollVertical(-distanceY);
+        }
+
+        // This will stop fling animation if user has touch intercepted
+        if (!isFlinging) {
+            return false;
+        }
+
+        if (percentTime < 1.0f) {
+            // fling animation running
+            post(this::onFlingAnimateStep);
+        } else {
+            // fling animation ended
+            isFlinging = false;
+            isScrollingVertically = false;
+            isScrollingHorizontally = false;
+        }
+        return isScrolled;
+    }
 
     /**
      * default Nested scroll axis is ViewCompat.SCROLL_AXIS_NONE <br/>
@@ -1051,7 +1084,7 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
         nestedScrollingChildHelper.onDetachedFromWindow();
     }
 
-    //endregion NestedScrollingChild methods
+    //endregion NestedScrollingChild implementation
 
 
     //region Getter/Setter methods
@@ -1059,7 +1092,7 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
     /**
      * @return data which is previously set by setData(data) method. otherwise null.
      */
-    public String[][] getData() {
+    public List<List<String>> getData() {
         return data;
     }
 
@@ -1068,9 +1101,9 @@ public class StickyHeaderTableView extends View implements NestedScrollingChild 
      *
      * @param data table content data
      */
-    public void setData(String[][] data) {
+    public void setData(List<List<String>> data) {
         this.data = data;
-        rectEachCellBoundData = new Rect[data.length][data[0].length];
+        cellsRectangles = new Rect[data.size()][data.get(0).size()];
         updateLayoutChanges();
     }
 
