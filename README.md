@@ -123,10 +123,10 @@ https://user-images.githubusercontent.com/23657151/151113930-61f8516b-1775-404e-
         setNestedScrollAxis(int nestedScrollAxis) // ViewCompat.SCROLL_AXIS_HORIZONTAL or ViewCompat.SCROLL_AXIS_VERTICAL
 
     Precaution:<br/>
-    1. If you are putting this view in the Vertical ScrollView than you can not set this view's height fixed.
+    1. If you are putting this view in the Vertical ScrollView then you can not set this view's height fixed.
     <br/>You should use height wrap_content then it will work fine.
 
-    2. If you are putting this view in the Horizontal ScrollView than you can not set this view's width fixed.
+    2. If you are putting this view in the Horizontal ScrollView then you can not set this view's width fixed.
     <br/>You should use width wrap_content then it will work fine.
 
 ## Changelogs:
