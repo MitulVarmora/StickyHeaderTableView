@@ -3,7 +3,6 @@ package sticky.header.tableview
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
 import sticky.header.tableview.stickyheadertableview.OnTableCellClickListener
 import sticky.header.tableview.stickyheadertableview.StickyHeaderTableView
 
@@ -18,7 +17,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun initComponents() {
         val stickyHeaderTableView = findViewById<StickyHeaderTableView>(R.id.stickyHeaderTableView)
-        stickyHeaderTableView.data = getDummyData()
         stickyHeaderTableView.onTableCellClickListener = object : OnTableCellClickListener {
             override fun onTableCellClicked(rowPosition: Int, columnPosition: Int) {
                 Toast.makeText(
@@ -28,19 +26,19 @@ class MainActivity : AppCompatActivity() {
                 ).show()
             }
         }
+        stickyHeaderTableView.data = getDummyData()
 
         // Runtime changing data
 //        stickyHeaderTableView.postDelayed({
 //            stickyHeaderTableView.data = getDummyData()
 //        }, 3000)
-
 //        stickyHeaderTableView.postDelayed({
 //            stickyHeaderTableView.data = null
-//        }, 10000)
+//        }, 6000)
 
         // For Nested Scrolling
-        stickyHeaderTableView.isNestedScrollingEnabled = true
-        stickyHeaderTableView.setNestedScrollAxis(ViewCompat.SCROLL_AXIS_VERTICAL)
+//        stickyHeaderTableView.isNestedScrollingEnabled = true
+//        stickyHeaderTableView.setNestedScrollAxis(ViewCompat.SCROLL_AXIS_VERTICAL)
     }
 
     private fun getDummyData(): List<List<String>> {

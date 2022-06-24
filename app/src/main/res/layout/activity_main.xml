@@ -51,7 +51,7 @@
             <sticky.header.tableview.stickyheadertableview.StickyHeaderTableView
                 android:id="@+id/stickyHeaderTableView"
                 android:layout_width="match_parent"
-                android:layout_height="600dp"
+                android:layout_height="wrap_content"
                 app:shtv_cellPadding="10dp"
                 app:shtv_contentCellFillColor="@color/contentCellFillColor"
                 app:shtv_dividerColor="@color/lineDividerColor"

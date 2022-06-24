@@ -21,19 +21,19 @@ abstract class BiDirectionalScrollableView @JvmOverloads constructor(
 
     //region Variables for boundary of the View
     /**
-     * Visible rect size of view which is displayed on screen
+     * Represents actual size of the view
      */
-    protected val visibleContentRect = Rect(0, 0, 0, 0)
+    protected val viewRect = Rect(0, 0, 0, 0)
 
     /**
-     * based on scrolling this rect value will update
+     * Represents positive biggest possible size of content on canvas (Which may be larger or smaller than the viewRect)
      */
-    protected val scrolledRect = Rect(0, 0, 0, 0)
+    private val contentRect = Rect(0, 0, 0, 0)
 
     /**
-     * Actual rect size of canvas drawn content (Which may be larger or smaller than mobile screen)
+     * Initially same as contentRect, When scrolled it will change all points to + or -
      */
-    private val actualContentRect = Rect(0, 0, 0, 0)
+    protected val scrolledContentRect = Rect(0, 0, 0, 0)
     //endregion Variables for boundary of the View
 
     //region Configurable variables via xml or setter methods
@@ -63,7 +63,7 @@ abstract class BiDirectionalScrollableView @JvmOverloads constructor(
     //region View dimensions initialization/updates
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        visibleContentRect.set(0, 0, w, h)
+        viewRect.set(0, 0, w, h)
     }
 
     /**
@@ -73,8 +73,8 @@ abstract class BiDirectionalScrollableView @JvmOverloads constructor(
      * @param desiredHeight height of all content
      */
     protected fun setDesiredDimension(desiredWidth: Int, desiredHeight: Int) {
-        scrolledRect.set(0, 0, desiredWidth, desiredHeight)
-        actualContentRect.set(0, 0, desiredWidth, desiredHeight)
+        scrolledContentRect.set(0, 0, desiredWidth, desiredHeight)
+        contentRect.set(0, 0, desiredWidth, desiredHeight)
     }
     //endregion View dimensions initialization/updates
 
@@ -149,7 +149,15 @@ abstract class BiDirectionalScrollableView @JvmOverloads constructor(
 //                        dispatchNestedPreScroll(0, distanceY.toInt(), null, null)
 //                    }
                     dispatchNestedPreScroll(distanceX.toInt(), distanceY.toInt(), null, null)
+
+//                    if (nestedScrollAxis == ViewCompat.SCROLL_AXIS_HORIZONTAL) {
+//                        dispatchNestedScroll(0, 0, distanceX.toInt(), 0, null)
+//                    } else if (nestedScrollAxis == ViewCompat.SCROLL_AXIS_VERTICAL) {
+//                        dispatchNestedScroll(0, 0, 0, distanceY.toInt(), null)
+//                    }
+                    dispatchNestedScroll(0, 0, distanceX.toInt(), distanceY.toInt(), null)
                 }
+
                 val isScrolled: Boolean
                 if (is2DScrollingEnabled) {
                     isScrolled = scroll2D(distanceX, distanceY)
@@ -179,14 +187,6 @@ abstract class BiDirectionalScrollableView @JvmOverloads constructor(
                 // than this will disallow intercepting touch event)
                 if (parent != null && isScrolled) {
                     parent.requestDisallowInterceptTouchEvent(true)
-                }
-                if (isNestedScrollingEnabled) {
-//                    if (nestedScrollAxis == ViewCompat.SCROLL_AXIS_HORIZONTAL) {
-//                        dispatchNestedScroll(0, 0, distanceX.toInt(), 0, null)
-//                    } else if (nestedScrollAxis == ViewCompat.SCROLL_AXIS_VERTICAL) {
-//                        dispatchNestedScroll(0, 0, 0, distanceY.toInt(), null)
-//                    }
-                    dispatchNestedScroll(0, 0, distanceX.toInt(), distanceY.toInt(), null)
                 }
                 return isScrolled
             }
@@ -274,19 +274,21 @@ abstract class BiDirectionalScrollableView @JvmOverloads constructor(
         if (!canScrollHorizontally() || distanceX == 0f) {
             return false
         }
-        var newScrolledLeft = scrolledRect.left - distanceX.toInt()
-        var newScrolledRight = scrolledRect.right - distanceX.toInt()
+        var newScrolledLeft = scrolledContentRect.left - distanceX.toInt()
+        var newScrolledRight = scrolledContentRect.right - distanceX.toInt()
         if (newScrolledLeft > 0) {
             newScrolledLeft = 0
-            newScrolledRight = actualContentRect.right
-        } else if (newScrolledLeft < -(actualContentRect.right - visibleContentRect.right)) {
-            newScrolledLeft = -(actualContentRect.right - visibleContentRect.right)
-            newScrolledRight = visibleContentRect.right
+            newScrolledRight = contentRect.right
+        } else if (newScrolledLeft < -(contentRect.right - viewRect.right)) {
+            newScrolledLeft = -(contentRect.right - viewRect.right)
+            newScrolledRight = viewRect.right
         }
-        if (scrolledRect.left == newScrolledLeft) {
+        if (scrolledContentRect.left == newScrolledLeft) {
             return false
         }
-        scrolledRect.set(newScrolledLeft, scrolledRect.top, newScrolledRight, scrolledRect.bottom)
+        scrolledContentRect.set(
+            newScrolledLeft, scrolledContentRect.top, newScrolledRight, scrolledContentRect.bottom
+        )
         invalidate()
         return true
     }
@@ -301,19 +303,21 @@ abstract class BiDirectionalScrollableView @JvmOverloads constructor(
         if (!canScrollVertically() || distanceY == 0f) {
             return false
         }
-        var newScrolledTop = scrolledRect.top - distanceY.toInt()
-        var newScrolledBottom = scrolledRect.bottom - distanceY.toInt()
+        var newScrolledTop = scrolledContentRect.top - distanceY.toInt()
+        var newScrolledBottom = scrolledContentRect.bottom - distanceY.toInt()
         if (newScrolledTop > 0) {
             newScrolledTop = 0
-            newScrolledBottom = actualContentRect.bottom
-        } else if (newScrolledTop < -(actualContentRect.bottom - visibleContentRect.bottom)) {
-            newScrolledTop = -(actualContentRect.bottom - visibleContentRect.bottom)
-            newScrolledBottom = visibleContentRect.bottom
+            newScrolledBottom = contentRect.bottom
+        } else if (newScrolledTop < -(contentRect.bottom - viewRect.bottom)) {
+            newScrolledTop = -(contentRect.bottom - viewRect.bottom)
+            newScrolledBottom = viewRect.bottom
         }
-        if (scrolledRect.top == newScrolledTop) {
+        if (scrolledContentRect.top == newScrolledTop) {
             return false
         }
-        scrolledRect.set(scrolledRect.left, newScrolledTop, scrolledRect.right, newScrolledBottom)
+        scrolledContentRect.set(
+            scrolledContentRect.left, newScrolledTop, scrolledContentRect.right, newScrolledBottom
+        )
         invalidate()
         return true
     }
@@ -332,37 +336,39 @@ abstract class BiDirectionalScrollableView @JvmOverloads constructor(
         val newScrolledRight: Int
         val newScrolledBottom: Int
         if (canScrollHorizontally()) {
-            newScrolledLeft = scrolledRect.left - distanceX.toInt()
-            newScrolledRight = scrolledRect.right - distanceX.toInt()
+            newScrolledLeft = scrolledContentRect.left - distanceX.toInt()
+            newScrolledRight = scrolledContentRect.right - distanceX.toInt()
             if (newScrolledLeft > 0) {
                 newScrolledLeft = 0
             }
-            if (newScrolledLeft < -(actualContentRect.right - visibleContentRect.right)) {
-                newScrolledLeft = -(actualContentRect.right - visibleContentRect.right)
+            if (newScrolledLeft < -(contentRect.right - viewRect.right)) {
+                newScrolledLeft = -(contentRect.right - viewRect.right)
             }
             isScrollHappened = true
         } else {
-            newScrolledLeft = scrolledRect.left
-            newScrolledRight = scrolledRect.right
+            newScrolledLeft = scrolledContentRect.left
+            newScrolledRight = scrolledContentRect.right
         }
         if (canScrollVertically()) {
-            newScrolledTop = scrolledRect.top - distanceY.toInt()
-            newScrolledBottom = scrolledRect.bottom - distanceY.toInt()
+            newScrolledTop = scrolledContentRect.top - distanceY.toInt()
+            newScrolledBottom = scrolledContentRect.bottom - distanceY.toInt()
             if (newScrolledTop > 0) {
                 newScrolledTop = 0
             }
-            if (newScrolledTop < -(actualContentRect.bottom - visibleContentRect.bottom)) {
-                newScrolledTop = -(actualContentRect.bottom - visibleContentRect.bottom)
+            if (newScrolledTop < -(contentRect.bottom - viewRect.bottom)) {
+                newScrolledTop = -(contentRect.bottom - viewRect.bottom)
             }
             isScrollHappened = true
         } else {
-            newScrolledTop = scrolledRect.top
-            newScrolledBottom = scrolledRect.bottom
+            newScrolledTop = scrolledContentRect.top
+            newScrolledBottom = scrolledContentRect.bottom
         }
         if (!isScrollHappened) {
             return false
         }
-        scrolledRect.set(newScrolledLeft, newScrolledTop, newScrolledRight, newScrolledBottom)
+        scrolledContentRect.set(
+            newScrolledLeft, newScrolledTop, newScrolledRight, newScrolledBottom
+        )
         invalidate()
         return true
     }
@@ -373,7 +379,7 @@ abstract class BiDirectionalScrollableView @JvmOverloads constructor(
      * @return true if content width is bigger than view width
      */
     fun canScrollHorizontally(): Boolean {
-        return actualContentRect.right > visibleContentRect.right
+        return contentRect.right > viewRect.right
     }
 
     /**
@@ -382,35 +388,35 @@ abstract class BiDirectionalScrollableView @JvmOverloads constructor(
      * @return true if content height is bigger than view height
      */
     fun canScrollVertically(): Boolean {
-        return actualContentRect.bottom > visibleContentRect.bottom
+        return contentRect.bottom > viewRect.bottom
     }
 
     /**
      * @return true if content are scrollable from top to bottom side
      */
     fun canScrollTop(): Boolean {
-        return scrolledRect.top < visibleContentRect.top
+        return scrolledContentRect.top < viewRect.top
     }
 
     /**
      * @return true if content are scrollable from bottom to top side
      */
     fun canScrollBottom(): Boolean {
-        return scrolledRect.bottom > visibleContentRect.bottom
+        return scrolledContentRect.bottom > viewRect.bottom
     }
 
     /**
      * @return true if content are scrollable from left to right side
      */
     fun canScrollRight(): Boolean {
-        return scrolledRect.right > visibleContentRect.right
+        return scrolledContentRect.right > viewRect.right
     }
 
     /**
      * @return true if content are scrollable from right to left side
      */
     fun canScrollLeft(): Boolean {
-        return scrolledRect.left < visibleContentRect.left
+        return scrolledContentRect.left < viewRect.left
     }
     //endregion Scrolling methods
 
@@ -460,11 +466,7 @@ abstract class BiDirectionalScrollableView @JvmOverloads constructor(
         offsetInWindow: IntArray?
     ): Boolean {
         return nestedScrollingChildHelper.dispatchNestedScroll(
-            dxConsumed,
-            dyConsumed,
-            dxUnconsumed,
-            dyUnconsumed,
-            offsetInWindow
+            dxConsumed, dyConsumed, dxUnconsumed, dyUnconsumed, offsetInWindow
         )
     }
 

@@ -27,9 +27,7 @@ class StickyHeaderTableView @JvmOverloads constructor(
             field = data
             cellsRectangles = if (data != null) {
                 Array(data.size) {
-                    arrayOfNulls(
-                        data[0].size
-                    )
+                    arrayOfNulls(data[0].size)
                 }
             } else {
                 arrayOf()
@@ -222,10 +220,7 @@ class StickyHeaderTableView @JvmOverloads constructor(
             for (j in data!![0].indices) {
                 if (i == 0 && j == 0) {
                     paintHeaderText.getTextBounds(
-                        data!![i][j],
-                        0,
-                        data!![i][j].length,
-                        textRectBounds
+                        data!![i][j], 0, data!![i][j].length, textRectBounds
                     )
                     if (maxWidthOfCell < textRectBounds.width()) {
                         maxWidthOfCell = textRectBounds.width()
@@ -242,10 +237,7 @@ class StickyHeaderTableView @JvmOverloads constructor(
                 } else if (i == 0) {
                     // Top headers cells
                     paintHeaderText.getTextBounds(
-                        data!![i][j],
-                        0,
-                        data!![i][j].length,
-                        textRectBounds
+                        data!![i][j], 0, data!![i][j].length, textRectBounds
                     )
                     if (maxWidthOfCell < textRectBounds.width()) {
                         maxWidthOfCell = textRectBounds.width()
@@ -262,10 +254,7 @@ class StickyHeaderTableView @JvmOverloads constructor(
                 } else if (j == 0) {
                     // Left headers cells
                     paintHeaderText.getTextBounds(
-                        data!![i][j],
-                        0,
-                        data!![i][j].length,
-                        textRectBounds
+                        data!![i][j], 0, data!![i][j].length, textRectBounds
                     )
                     if (isDisplayLeftHeadersVertically) {
                         if (maxWidthOfCell < textRectBounds.height()) {
@@ -297,10 +286,7 @@ class StickyHeaderTableView @JvmOverloads constructor(
                 } else {
                     // Other content cells
                     paintLabelText.getTextBounds(
-                        data!![i][j],
-                        0,
-                        data!![i][j].length,
-                        textRectBounds
+                        data!![i][j], 0, data!![i][j].length, textRectBounds
                     )
                     if (maxWidthOfCell < textRectBounds.width()) {
                         maxWidthOfCell = textRectBounds.width()
@@ -345,9 +331,9 @@ class StickyHeaderTableView @JvmOverloads constructor(
 
         //region Variables
         var cellLeftX: Int
-        var cellTopY = scrolledRect.top
+        var cellTopY = scrolledContentRect.top
         var cellRightX: Int
-        var cellBottomY = scrolledRect.top + getHeightOfRow(0)
+        var cellBottomY = scrolledContentRect.top + getHeightOfRow(0)
         val halfDividerThickness = dividerThickness / 2
         var drawTextX: Float
         var drawTextY: Float
@@ -366,7 +352,7 @@ class StickyHeaderTableView @JvmOverloads constructor(
             getHeightOfRow(0)
         )
         for (i in data!!.indices) {
-            cellRightX = scrolledRect.left
+            cellRightX = scrolledContentRect.left
             val heightOfRowI = getHeightOfRow(i)
             if (i == 0) {
                 cellTopY = halfDividerThickness
@@ -378,7 +364,7 @@ class StickyHeaderTableView @JvmOverloads constructor(
                         updateCellRectangle(i, j, cellLeftX, cellTopY, cellRightX, heightOfRowI)
                     }
                 }
-                cellBottomY = scrolledRect.top + getHeightOfRow(i)
+                cellBottomY = scrolledContentRect.top + getHeightOfRow(i)
             } else {
                 // These are content cells
                 for (j in data!![0].indices) {
@@ -408,17 +394,17 @@ class StickyHeaderTableView @JvmOverloads constructor(
         var isBottomVisible: Boolean
         for (i in 1 until data!!.size) {
             isTopVisible = (cellsRectangles[i][0]!!.top >= cellsRectangles[0][0]!!.bottom
-                && cellsRectangles[i][0]!!.top <= visibleContentRect.bottom)
+                && cellsRectangles[i][0]!!.top <= viewRect.bottom)
             isBottomVisible = (cellsRectangles[i][0]!!.bottom >= cellsRectangles[0][0]!!.bottom
-                && cellsRectangles[i][0]!!.bottom <= visibleContentRect.bottom)
+                && cellsRectangles[i][0]!!.bottom <= viewRect.bottom)
             if (isTopVisible || isBottomVisible) {
 
                 // Draw contents
                 for (j in 1 until data!![i].size) {
                     isLeftVisible = (cellsRectangles[i][j]!!.left >= cellsRectangles[i][0]!!.right
-                        && cellsRectangles[i][j]!!.left <= visibleContentRect.right)
+                        && cellsRectangles[i][j]!!.left <= viewRect.right)
                     isRightVisible = (cellsRectangles[i][j]!!.right >= cellsRectangles[i][0]!!.right
-                        && cellsRectangles[i][j]!!.right <= visibleContentRect.right)
+                        && cellsRectangles[i][j]!!.right <= viewRect.right)
                     if (isLeftVisible || isRightVisible) {
                         canvas.drawRect(
                             cellsRectangles[i][j]!!.left.toFloat(),
@@ -438,22 +424,14 @@ class StickyHeaderTableView @JvmOverloads constructor(
                         }
                         textToDraw = data!![i][j]
                         paintLabelText.getTextBounds(
-                            textToDraw,
-                            0,
-                            textToDraw.length,
-                            textRectBounds
+                            textToDraw, 0, textToDraw.length, textRectBounds
                         )
                         drawTextX =
                             cellsRectangles[i][j]!!.right - getWidthOfColumn(j) / 2f - textRectBounds.width() / 2f
                         drawTextY =
                             cellsRectangles[i][j]!!.bottom - getHeightOfRow(i) / 2f + textRectBounds.height() / 2f
                         canvas.drawText(
-                            textToDraw,
-                            0,
-                            textToDraw.length,
-                            drawTextX,
-                            drawTextY,
-                            paintLabelText
+                            textToDraw, 0, textToDraw.length, drawTextX, drawTextY, paintLabelText
                         )
                     }
                 }
@@ -485,12 +463,7 @@ class StickyHeaderTableView @JvmOverloads constructor(
                     canvas.save()
                     canvas.rotate(-90f, drawTextX, drawTextY)
                     canvas.drawText(
-                        textToDraw,
-                        0,
-                        textToDraw.length,
-                        drawTextX,
-                        drawTextY,
-                        paintHeaderText
+                        textToDraw, 0, textToDraw.length, drawTextX, drawTextY, paintHeaderText
                     )
                     canvas.restore()
                 } else {
@@ -499,12 +472,7 @@ class StickyHeaderTableView @JvmOverloads constructor(
                     drawTextY =
                         cellsRectangles[i][0]!!.bottom - getHeightOfRow(i) / 2f + textRectBounds.height() / 2f
                     canvas.drawText(
-                        textToDraw,
-                        0,
-                        textToDraw.length,
-                        drawTextX,
-                        drawTextY,
-                        paintHeaderText
+                        textToDraw, 0, textToDraw.length, drawTextX, drawTextY, paintHeaderText
                     )
                 }
             }
@@ -515,9 +483,9 @@ class StickyHeaderTableView @JvmOverloads constructor(
         //region Draw top headers (0,*)
         for (j in 1 until data!![0].size) {
             isLeftVisible = (cellsRectangles[0][j]!!.left >= cellsRectangles[0][0]!!.right
-                && cellsRectangles[0][j]!!.left <= visibleContentRect.right)
+                && cellsRectangles[0][j]!!.left <= viewRect.right)
             isRightVisible = (cellsRectangles[0][j]!!.right >= cellsRectangles[0][0]!!.right
-                && cellsRectangles[0][j]!!.right <= visibleContentRect.right)
+                && cellsRectangles[0][j]!!.right <= viewRect.right)
             if (isLeftVisible || isRightVisible) {
                 canvas.drawRect(
                     cellsRectangles[0][j]!!.left.toFloat(),
@@ -542,12 +510,7 @@ class StickyHeaderTableView @JvmOverloads constructor(
                 drawTextY =
                     cellsRectangles[0][j]!!.bottom - getHeightOfRow(0) / 2f + textRectBounds.height() / 2f
                 canvas.drawText(
-                    textToDraw,
-                    0,
-                    textToDraw.length,
-                    drawTextX,
-                    drawTextY,
-                    paintHeaderText
+                    textToDraw, 0, textToDraw.length, drawTextX, drawTextY, paintHeaderText
                 )
             }
         }
@@ -582,10 +545,10 @@ class StickyHeaderTableView @JvmOverloads constructor(
         //region Draw whole view border
         if (dividerThickness != 0) {
             canvas.drawRect(
-                visibleContentRect.left.toFloat(),
-                visibleContentRect.top.toFloat(),
-                (visibleContentRect.right - halfDividerThickness).toFloat(),
-                (visibleContentRect.bottom - halfDividerThickness).toFloat(),
+                viewRect.left.toFloat(),
+                viewRect.top.toFloat(),
+                (viewRect.right - halfDividerThickness).toFloat(),
+                (viewRect.bottom - halfDividerThickness).toFloat(),
                 paintStrokeRect
             )
         }
