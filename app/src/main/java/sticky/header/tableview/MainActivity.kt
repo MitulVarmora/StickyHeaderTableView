@@ -3,6 +3,7 @@ package sticky.header.tableview
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import sticky.header.tableview.stickyheadertableview.OnTableCellClickListener
 import sticky.header.tableview.stickyheadertableview.StickyHeaderTableView
 
 class MainActivity : AppCompatActivity() {
@@ -16,45 +17,82 @@ class MainActivity : AppCompatActivity() {
 
     private fun initComponents() {
         val stickyHeaderTableView = findViewById<StickyHeaderTableView>(R.id.stickyHeaderTableView)
-        stickyHeaderTableView.data = getDummyData()
-        stickyHeaderTableView.setOnTableCellClickListener { rowPosition, columnPosition ->
-            Toast.makeText(
-                this@MainActivity,
-                "Row: $rowPosition, Column: $columnPosition",
-                Toast.LENGTH_SHORT
-            ).show()
+        stickyHeaderTableView.onTableCellClickListener = object : OnTableCellClickListener {
+            override fun onTableCellClicked(rowPosition: Int, columnPosition: Int) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Row: $rowPosition, Column: $columnPosition",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
+        stickyHeaderTableView.data = getDummyData()
+
+        // Runtime changing data
+//        stickyHeaderTableView.postDelayed({
+//            stickyHeaderTableView.data = getDummyData()
+//        }, 3000)
+//        stickyHeaderTableView.postDelayed({
+//            stickyHeaderTableView.data = null
+//        }, 6000)
 
         // For Nested Scrolling
-        //stickyHeaderTableView.isNestedScrollingEnabled = true
-        //stickyHeaderTableView.setNestedScrollAxis(ViewCompat.SCROLL_AXIS_VERTICAL)
+//        stickyHeaderTableView.isNestedScrollingEnabled = true
+//        stickyHeaderTableView.setNestedScrollAxis(ViewCompat.SCROLL_AXIS_VERTICAL)
     }
 
-    private fun getDummyData(): Array<Array<String?>> {
+    private fun getDummyData(): List<List<String>> {
         val row = 31
         val column = 31
 
-        val strings = Array(row) {
-            arrayOfNulls<String>(column)
-        }
+        val strings = ArrayList<ArrayList<String>>()
+        var innerStrings: ArrayList<String>
 
         for (i in -1 until row - 1) {
+            innerStrings = ArrayList()
             for (j in -1 until column - 1) {
                 if (i == -1 && j == -1) {
-                    strings[0][0] = "0,0"
+                    innerStrings.add("0,0")
                 } else if (i == -1) {
-                    strings[i + 1][j + 1] = "C " + (j + 1).toString()
+                    innerStrings.add("C " + (j + 1).toString())
                 } else if (j == -1) {
-                    strings[i + 1][j + 1] = "R " + (i + 1).toString()
+                    innerStrings.add("R " + (i + 1).toString())
                 } else {
-                    strings[i + 1][j + 1] = (i + 1).toString() + "," + (j + 1).toString()
+                    innerStrings.add((i + 1).toString() + "," + (j + 1).toString())
                 }
             }
+            strings.add(innerStrings)
         }
 
         strings[3][0] = "R 3 Big"
         strings[0][2] = "C 2 Big"
         strings[7][5] = "7,5 larger"
+
+        return strings
+    }
+
+    private fun getSmallDummyData(): List<List<String>> {
+        val row = 3
+        val column = 4
+
+        val strings = ArrayList<ArrayList<String>>()
+        var innerStrings: ArrayList<String>
+
+        for (i in -1 until row - 1) {
+            innerStrings = ArrayList()
+            for (j in -1 until column - 1) {
+                if (i == -1 && j == -1) {
+                    innerStrings.add("0,0")
+                } else if (i == -1) {
+                    innerStrings.add("C " + (j + 1).toString())
+                } else if (j == -1) {
+                    innerStrings.add("R " + (i + 1).toString())
+                } else {
+                    innerStrings.add((i + 1).toString() + "," + (j + 1).toString())
+                }
+            }
+            strings.add(innerStrings)
+        }
 
         return strings
     }
